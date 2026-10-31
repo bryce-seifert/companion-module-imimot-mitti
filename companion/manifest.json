@@ -1,4 +1,6 @@
 {
+	"$schema": "../node_modules/@companion-module/base/assets/manifest.schema.json",
+	"type": "connection",
 	"id": "imimot-mitti",
 	"name": "imimot-mitti",
 	"shortname": "mitti",
@@ -19,14 +21,14 @@
 	],
 	"legacyIds": ["mitti"],
 	"runtime": {
-		"type": "node22",
+		"type": "node26",
 		"api": "nodejs-ipc",
 		"apiVersion": "0.0.0",
 		"entrypoint": "../index.js"
 	},
 	"manufacturer": "Imimot",
 	"products": ["Mitti"],
-	"keywords": ["Software", "Video"],
+	"keywords": ["software", "video", "playback", "media"],
 	"bonjourQueries": {
 		"bonjourHost": {
 			"type": "osc",

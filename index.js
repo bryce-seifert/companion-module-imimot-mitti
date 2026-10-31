@@ -1,14 +1,16 @@
-import { InstanceBase, Regex, InstanceStatus, runEntrypoint } from '@companion-module/base'
+import { InstanceBase, Regex, InstanceStatus } from '@companion-module/base'
 import { getActions } from './actions.js'
 import { getPresets } from './presets.js'
 import { getVariables } from './variables.js'
 import { getFeedbacks } from './feedbacks.js'
 import UpgradeScripts from './upgrades.js'
 
+export { UpgradeScripts }
+
 import OSC from 'osc'
 import { Bonjour } from '@julusian/bonjour-service'
 
-class MittiInstance extends InstanceBase {
+export default class MittiInstance extends InstanceBase {
 	constructor(internal) {
 		super(internal)
 	}
@@ -59,7 +61,7 @@ class MittiInstance extends InstanceBase {
 				id: 'hostFiller',
 				width: 10,
 				label: '',
-				isVisible: (options) => !!options['bonjourHost'],
+				isVisibleExpression: `!!$(options:bonjourHost)`,
 				value: '',
 			},
 			{
@@ -70,7 +72,7 @@ class MittiInstance extends InstanceBase {
 				default: '127.0.0.1',
 				width: 10,
 				regex: Regex.IP,
-				isVisible: (options) => !options['bonjourHost'],
+				isVisibleExpression: `!$(options:bonjourHost)`,
 			},
 			{
 				type: 'textinput',
@@ -130,8 +132,8 @@ class MittiInstance extends InstanceBase {
 	}
 
 	initPresets() {
-		const presets = getPresets.bind(this)()
-		this.setPresetDefinitions(presets)
+		const { structure, presets } = getPresets.bind(this)()
+		this.setPresetDefinitions(structure, presets)
 	}
 
 	initActions() {
@@ -169,10 +171,10 @@ class MittiInstance extends InstanceBase {
 		}
 	}
 
-	async conformCueID(context, cueID) {
-		let cue = await context.parseVariablesInString(cueID)
+	conformCueID(cueID) {
+		let cue = String(cueID ?? '')
 
-		if (!cue?.match(/^(current|selected|previous|next|all)$/)) {
+		if (!cue.match(/^(current|selected|previous|next|all)$/)) {
 			cue = cue.toUpperCase().slice(0, 6)
 		}
 		return cue
@@ -596,4 +598,3 @@ class MittiInstance extends InstanceBase {
 		}
 	}
 }
-runEntrypoint(MittiInstance, UpgradeScripts)

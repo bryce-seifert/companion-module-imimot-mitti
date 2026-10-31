@@ -194,8 +194,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/jump`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/jump`)
 			},
 		},
 		jumpCueName: {
@@ -208,8 +208,8 @@ export function getActions() {
 					id: 'string',
 				},
 			],
-			callback: async (action, context) => {
-				const value = await context.parseVariablesInString(action.options.string)
+			callback: (action) => {
+				const value = action.options.string
 				this.sendCommand('jumpToCueWithName', value)
 			},
 		},
@@ -225,8 +225,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/select`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/select`)
 			},
 		},
 		play_cue: {
@@ -247,8 +247,8 @@ export function getActions() {
 					default: false,
 				},
 			],
-			callback: async (action, context) => {
-				const cueID = await this.conformCueID(context, action.options.cuenumber)
+			callback: (action) => {
+				const cueID = this.conformCueID(action.options.cuenumber)
 				if (action.options.forceCut) {
 					this.sendCommand(`playCueWithCueIDForceCut`, cueID)
 				} else {
@@ -275,9 +275,8 @@ export function getActions() {
 					default: false,
 				},
 			],
-			callback: async (action, context) => {
-				let index = await context.parseVariablesInString(action.options.index)
-				index = parseInt(index)
+			callback: (action) => {
+				const index = parseInt(action.options.index)
 				if (isNaN(index) || index < 1 || index > 999) {
 					this.log('warn', 'Index must be a number between 1 and 999')
 				} else {
@@ -306,8 +305,8 @@ export function getActions() {
 					default: false,
 				},
 			],
-			callback: async (action, context) => {
-				const value = await context.parseVariablesInString(action.options.string)
+			callback: (action) => {
+				const value = action.options.string
 				if (action.options.forceCut) {
 					this.sendCommand('playCueWithNameForceCut', value)
 				} else {
@@ -327,8 +326,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/audioOn`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/audioOn`)
 			},
 		},
 		audioOff: {
@@ -343,8 +342,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/audioOff`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/audioOff`)
 			},
 		},
 		toggleAudio: {
@@ -359,8 +358,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/toggleAudio`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/toggleAudio`)
 			},
 		},
 		toggleFadeIn: {
@@ -375,8 +374,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/toggleFadeIn`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/toggleFadeIn`)
 			},
 		},
 		fadeInOn: {
@@ -391,8 +390,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/fadeInOn`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/fadeInOn`)
 			},
 		},
 		fadeInOff: {
@@ -407,8 +406,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/fadeInOff`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/fadeInOff`)
 			},
 		},
 		toggleFadeOut: {
@@ -423,8 +422,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/toggleFadeOut`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/toggleFadeOut`)
 			},
 		},
 		fadeOutOn: {
@@ -439,8 +438,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/fadeOutOn`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/fadeOutOn`)
 			},
 		},
 		fadeOutOff: {
@@ -455,8 +454,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/fadeOutOff`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/fadeOutOff`)
 			},
 		},
 		toggleGoto: {
@@ -471,8 +470,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/toggleGoto`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/toggleGoto`)
 			},
 		},
 		gotoOn: {
@@ -487,8 +486,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/gotoOn`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/gotoOn`)
 			},
 		},
 		gotoOff: {
@@ -503,8 +502,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/gotoOff`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/gotoOff`)
 			},
 		},
 		setGotoToCueID: {
@@ -527,10 +526,10 @@ export function getActions() {
 					default: '2',
 				},
 			],
-			callback: async (action, context) => {
+			callback: (action) => {
 				this.sendCommand(
-					`${await this.conformCueID(context, action.options.cuenumber)}/setGotoToCueID`,
-					`${await this.conformCueID(context, action.options.gotoCue)}`,
+					`${this.conformCueID(action.options.cuenumber)}/setGotoToCueID`,
+					`${this.conformCueID(action.options.gotoCue)}`,
 				)
 			},
 		},
@@ -546,8 +545,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/toggleLoop`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/toggleLoop`)
 			},
 		},
 		loopOn: {
@@ -562,8 +561,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/loopOn`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/loopOn`)
 			},
 		},
 		loopOff: {
@@ -578,8 +577,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/loopOff`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/loopOff`)
 			},
 		},
 		togglePauseAtBeginning: {
@@ -594,8 +593,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/togglePauseAtBeginning`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/togglePauseAtBeginning`)
 			},
 		},
 		pauseAtBeginningOn: {
@@ -610,8 +609,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/pauseAtBeginningOn`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/pauseAtBeginningOn`)
 			},
 		},
 		pauseAtBeginningOff: {
@@ -626,8 +625,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/pauseAtBeginningOff`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/pauseAtBeginningOff`)
 			},
 		},
 		togglePauseAtEnd: {
@@ -642,8 +641,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/togglePauseAtEnd`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/togglePauseAtEnd`)
 			},
 		},
 		pauseAtEndOn: {
@@ -658,8 +657,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/pauseAtEndOn`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/pauseAtEndOn`)
 			},
 		},
 		pauseAtEndOff: {
@@ -674,8 +673,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/pauseAtEndOff`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/pauseAtEndOff`)
 			},
 		},
 		toggleTransition: {
@@ -690,8 +689,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/toggleTransition`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/toggleTransition`)
 			},
 		},
 		transitionOn: {
@@ -706,8 +705,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/transitionOn`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/transitionOn`)
 			},
 		},
 		transitionOff: {
@@ -722,8 +721,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/transitionOff`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/transitionOff`)
 			},
 		},
 		toggleVideoFx: {
@@ -738,8 +737,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/toggleVideoFx`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/toggleVideoFx`)
 			},
 		},
 		videoFxOn: {
@@ -754,8 +753,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/videoFxOn`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/videoFxOn`)
 			},
 		},
 		videoFxOff: {
@@ -770,8 +769,8 @@ export function getActions() {
 					default: 'current',
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(`${await this.conformCueID(context, action.options.cuenumber)}/videoFxOff`)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/videoFxOff`)
 			},
 		},
 		scale: {
@@ -792,13 +791,14 @@ export function getActions() {
 					default: 100,
 					min: 0,
 					max: 200,
-					isVisible: (options) => !options.splitScale,
+					isVisibleExpression: `!$(options:splitScale)`,
 				},
 				{
 					type: 'checkbox',
 					label: 'Scale H/V Separately',
 					id: 'splitScale',
 					default: false,
+					disableAutoExpression: true,
 				},
 				{
 					type: 'number',
@@ -807,7 +807,7 @@ export function getActions() {
 					default: 100,
 					min: 0,
 					max: 200,
-					isVisible: (options) => options.splitScale,
+					isVisibleExpression: `$(options:splitScale)`,
 				},
 				{
 					type: 'number',
@@ -816,11 +816,11 @@ export function getActions() {
 					default: 100,
 					min: 0,
 					max: 200,
-					isVisible: (options) => options.splitScale,
+					isVisibleExpression: `$(options:splitScale)`,
 				},
 			],
-			callback: async (action, context) => {
-				let cue = await this.conformCueID(context, action.options.cuenumber)
+			callback: (action) => {
+				let cue = this.conformCueID(action.options.cuenumber)
 				if (action.options.splitScale) {
 					this.sendCommand(`${cue}/scaleHAsPercent`, action.options.valueH)
 					this.sendCommand(`${cue}/scaleVAsPercent`, action.options.valueV)
@@ -851,18 +851,12 @@ export function getActions() {
 					id: 'valueY',
 				},
 			],
-			callback: async (action, context) => {
+			callback: (action) => {
 				if (action.options.valueX) {
-					this.sendCommand(
-						`${await this.conformCueID(context, action.options.cuenumber)}/posXAsPixels`,
-						action.options.valueX,
-					)
+					this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/posXAsPixels`, action.options.valueX)
 				}
 				if (action.options.valueY) {
-					this.sendCommand(
-						`${await this.conformCueID(context, action.options.cuenumber)}/posYAsPixels`,
-						action.options.valueY,
-					)
+					this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/posYAsPixels`, action.options.valueY)
 				}
 			},
 		},
@@ -898,28 +892,22 @@ export function getActions() {
 					id: 'valueBottom',
 				},
 			],
-			callback: async (action, context) => {
+			callback: (action) => {
 				if (action.options.valueLeft) {
-					this.sendCommand(
-						`${await this.conformCueID(context, action.options.cuenumber)}/cropLeftAsPixels`,
-						action.options.valueLeft,
-					)
+					this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/cropLeftAsPixels`, action.options.valueLeft)
 				}
 				if (action.options.valueRight) {
 					this.sendCommand(
-						`${await this.conformCueID(context, action.options.cuenumber)}/cropRightAsPixels`,
+						`${this.conformCueID(action.options.cuenumber)}/cropRightAsPixels`,
 						action.options.valueRight,
 					)
 				}
 				if (action.options.valueTop) {
-					this.sendCommand(
-						`${await this.conformCueID(context, action.options.cuenumber)}/cropTopAsPixels`,
-						action.options.valueTop,
-					)
+					this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/cropTopAsPixels`, action.options.valueTop)
 				}
 				if (action.options.valueBottom) {
 					this.sendCommand(
-						`${await this.conformCueID(context, action.options.cuenumber)}/cropBottomAsPixels`,
+						`${this.conformCueID(action.options.cuenumber)}/cropBottomAsPixels`,
 						action.options.valueBottom,
 					)
 				}
@@ -945,11 +933,8 @@ export function getActions() {
 					max: 180,
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(
-					`${await this.conformCueID(context, action.options.cuenumber)}/rotateAsDegrees`,
-					action.options.value,
-				)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/rotateAsDegrees`, action.options.value)
 			},
 		},
 		hue: {
@@ -972,11 +957,8 @@ export function getActions() {
 					max: 180,
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(
-					`${await this.conformCueID(context, action.options.cuenumber)}/hueAsDegrees`,
-					action.options.value,
-				)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/hueAsDegrees`, action.options.value)
 			},
 		},
 		saturation: {
@@ -999,11 +981,8 @@ export function getActions() {
 					max: 100,
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(
-					`${await this.conformCueID(context, action.options.cuenumber)}/saturationAsPercent`,
-					action.options.value,
-				)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/saturationAsPercent`, action.options.value)
 			},
 		},
 		vibrance: {
@@ -1026,11 +1005,8 @@ export function getActions() {
 					max: 100,
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(
-					`${await this.conformCueID(context, action.options.cuenumber)}/vibranceAsPercent`,
-					action.options.value,
-				)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/vibranceAsPercent`, action.options.value)
 			},
 		},
 		brightness: {
@@ -1053,11 +1029,8 @@ export function getActions() {
 					max: 100,
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(
-					`${await this.conformCueID(context, action.options.cuenumber)}/brightnessAsPercent`,
-					action.options.value,
-				)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/brightnessAsPercent`, action.options.value)
 			},
 		},
 		contrast: {
@@ -1080,11 +1053,8 @@ export function getActions() {
 					max: 100,
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(
-					`${await this.conformCueID(context, action.options.cuenumber)}/contrastAsPercent`,
-					action.options.value,
-				)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/contrastAsPercent`, action.options.value)
 			},
 		},
 		opacity: {
@@ -1107,11 +1077,8 @@ export function getActions() {
 					max: 100,
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(
-					`${await this.conformCueID(context, action.options.cuenumber)}/opacityAsPercent`,
-					action.options.value,
-				)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/opacityAsPercent`, action.options.value)
 			},
 		},
 		volume: {
@@ -1134,9 +1101,9 @@ export function getActions() {
 					max: 12,
 				},
 			],
-			callback: async (action, context) => {
+			callback: (action) => {
 				this.sendCommand(
-					`${await this.conformCueID(context, action.options.cuenumber)}/volumeAsDecibels`,
+					`${this.conformCueID(action.options.cuenumber)}/volumeAsDecibels`,
 					parseFloat(action.options.value),
 				)
 			},
@@ -1151,7 +1118,7 @@ export function getActions() {
 					default: 1,
 				},
 			],
-			callback: async (action) => {
+			callback: (action) => {
 				if (this.states.currentCueVolume !== undefined) {
 					let newValue = this.states.currentCueVolume + parseFloat(action.options.value)
 					if (newValue < -60) {
@@ -1173,6 +1140,7 @@ export function getActions() {
 					label: 'Mode',
 					id: 'mode',
 					default: 'auto',
+					disableAutoExpression: true,
 					choices: [
 						{ id: 'auto', label: 'Auto-Fade' },
 						{ id: 'custom', label: 'Custom Value' },
@@ -1185,7 +1153,7 @@ export function getActions() {
 					default: 0,
 					min: 0,
 					max: 100,
-					isVisible: (options) => options.mode === 'custom',
+					isVisibleExpression: `$(options:mode) == 'custom'`,
 				},
 			],
 			callback: (action) => {
@@ -1238,8 +1206,8 @@ export function getActions() {
 					useVariables: true,
 				},
 			],
-			callback: async (action, context) => {
-				const value = await context.parseVariablesInString(action.options.value)
+			callback: (action) => {
+				const value = action.options.value
 				this.sendCommand(`playheadScrub`, value)
 			},
 		},
@@ -1255,8 +1223,8 @@ export function getActions() {
 					useVariables: true,
 				},
 			],
-			callback: async (action, context) => {
-				const value = await context.parseVariablesInString(action.options.value)
+			callback: (action) => {
+				const value = action.options.value
 				this.sendCommand(`locateCurrentCue`, value)
 			},
 		},
@@ -1282,11 +1250,8 @@ export function getActions() {
 					step: 10,
 				},
 			],
-			callback: async (action, context) => {
-				this.sendCommand(
-					`${await this.conformCueID(context, action.options.cuenumber)}/playbackSpeed`,
-					action.options.value,
-				)
+			callback: (action) => {
+				this.sendCommand(`${this.conformCueID(action.options.cuenumber)}/playbackSpeed`, action.options.value)
 			},
 		},
 		adjustPlaybackSpeed: {
@@ -1299,7 +1264,7 @@ export function getActions() {
 					default: 5,
 				},
 			],
-			callback: async (action) => {
+			callback: (action) => {
 				if (this.states.currentCuePlaybackSpeed !== undefined) {
 					let newValue = this.states.currentCuePlaybackSpeed + parseFloat(action.options.value)
 					if (newValue < 1) {

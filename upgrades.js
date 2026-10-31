@@ -13,9 +13,9 @@ export default [
 
 		for (const action of props.actions) {
 			if (action.actionId === 'scale') {
-				action.options.splitScale = false
-				action.options.valueH = 100
-				action.options.valueV = 100
+				action.options.splitScale = { isExpression: false, value: false }
+				action.options.valueH = { isExpression: false, value: 100 }
+				action.options.valueV = { isExpression: false, value: 100 }
 				changes.updatedActions.push(action)
 			}
 		}

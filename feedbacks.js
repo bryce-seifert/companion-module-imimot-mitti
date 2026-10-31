@@ -48,8 +48,8 @@ export function getFeedbacks() {
 				default: '',
 			},
 		],
-		callback: async (feedback, context) => {
-			const value = await context.parseVariablesInString(feedback.options.cueName)
+		callback: (feedback) => {
+			const value = feedback.options.cueName
 			return this.states.playing == 'Playing' && this.states.currentCueName == value
 		},
 	}
@@ -70,8 +70,8 @@ export function getFeedbacks() {
 				default: '',
 			},
 		],
-		callback: async (feedback, context) => {
-			const value = await context.parseVariablesInString(feedback.options.cueName)
+		callback: (feedback) => {
+			const value = feedback.options.cueName
 			return this.states.currentCueName == value
 		},
 	}
@@ -92,8 +92,8 @@ export function getFeedbacks() {
 				default: '',
 			},
 		],
-		callback: async (feedback, context) => {
-			const value = await context.parseVariablesInString(feedback.options.cueName)
+		callback: (feedback) => {
+			const value = feedback.options.cueName
 			return this.states.selectedCueName == value
 		},
 	}
@@ -114,8 +114,8 @@ export function getFeedbacks() {
 				default: '',
 			},
 		],
-		callback: async (feedback, context) => {
-			const value = await this.conformCueID(context, feedback.options.cueID)
+		callback: (feedback) => {
+			const value = this.conformCueID(feedback.options.cueID)
 			return this.states.playing == 'Playing' && this.states.currentCueID == value
 		},
 	}
@@ -136,8 +136,8 @@ export function getFeedbacks() {
 				default: '',
 			},
 		],
-		callback: async (feedback, context) => {
-			const value = await this.conformCueID(context, feedback.options.cueID)
+		callback: (feedback) => {
+			const value = this.conformCueID(feedback.options.cueID)
 			return this.states.currentCueID == value
 		},
 	}
@@ -158,8 +158,8 @@ export function getFeedbacks() {
 				default: '',
 			},
 		],
-		callback: async (feedback, context) => {
-			const value = await this.conformCueID(context, feedback.options.cueID)
+		callback: (feedback) => {
+			const value = this.conformCueID(feedback.options.cueID)
 			return this.states.selectedCueID == value
 		},
 	}
@@ -180,8 +180,8 @@ export function getFeedbacks() {
 				default: '',
 			},
 		],
-		callback: async (feedback, context) => {
-			const value = await this.conformCueID(context, feedback.options.cueID)
+		callback: (feedback) => {
+			const value = this.conformCueID(feedback.options.cueID)
 			return this.cues[value]?.toggleAudio > 0
 		},
 	}
@@ -202,8 +202,8 @@ export function getFeedbacks() {
 				default: '',
 			},
 		],
-		callback: async (feedback, context) => {
-			const value = await this.conformCueID(context, feedback.options.cueID)
+		callback: (feedback) => {
+			const value = this.conformCueID(feedback.options.cueID)
 			return this.cues[value]?.togglePauseAtBeginning > 0
 		},
 	}
@@ -224,8 +224,8 @@ export function getFeedbacks() {
 				default: '',
 			},
 		],
-		callback: async (feedback, context) => {
-			const value = await this.conformCueID(context, feedback.options.cueID)
+		callback: (feedback) => {
+			const value = this.conformCueID(feedback.options.cueID)
 			return this.cues[value]?.togglePauseAtEnd > 0
 		},
 	}
@@ -246,8 +246,8 @@ export function getFeedbacks() {
 				default: '',
 			},
 		],
-		callback: async (feedback, context) => {
-			const value = await this.conformCueID(context, feedback.options.cueID)
+		callback: (feedback) => {
+			const value = this.conformCueID(feedback.options.cueID)
 			return this.cues[value]?.toggleFadeIn > 0
 		},
 	}
@@ -268,8 +268,8 @@ export function getFeedbacks() {
 				default: '',
 			},
 		],
-		callback: async (feedback, context) => {
-			const value = await this.conformCueID(context, feedback.options.cueID)
+		callback: (feedback) => {
+			const value = this.conformCueID(feedback.options.cueID)
 			return this.cues[value]?.toggleFadeOut > 0
 		},
 	}
@@ -290,8 +290,8 @@ export function getFeedbacks() {
 				default: '',
 			},
 		],
-		callback: async (feedback, context) => {
-			const value = await this.conformCueID(context, feedback.options.cueID)
+		callback: (feedback) => {
+			const value = this.conformCueID(feedback.options.cueID)
 			return this.cues[value]?.toggleLoop > 0
 		},
 	}
@@ -312,8 +312,8 @@ export function getFeedbacks() {
 				default: '',
 			},
 		],
-		callback: async (feedback, context) => {
-			const value = await this.conformCueID(context, feedback.options.cueID)
+		callback: (feedback) => {
+			const value = this.conformCueID(feedback.options.cueID)
 			return this.cues[value]?.toggleTransition > 0
 		},
 	}
@@ -334,8 +334,8 @@ export function getFeedbacks() {
 				default: '',
 			},
 		],
-		callback: async (feedback, context) => {
-			const value = await this.conformCueID(context, feedback.options.cueID)
+		callback: (feedback) => {
+			const value = this.conformCueID(feedback.options.cueID)
 			return this.cues[value]?.toggleGoto > 0
 		},
 	}
