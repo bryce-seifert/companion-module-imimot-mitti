@@ -1,6 +1,6 @@
 # Imimot Mitti Connection
 
-This module will allow you to control (Mitti)[https://imimot.com/mitti], a modern, feature-packed but easy-to-use pro video playback solution for live events and exhibitions.
+This module will allow you to control [Mitti](https://imimot.com/mitti), a modern, feature-packed but easy-to-use pro video playback solution for live events and exhibitions.
 
 > [!IMPORTANT]
 > Due to underlying API updates, this version requires the following minimum software releases:
