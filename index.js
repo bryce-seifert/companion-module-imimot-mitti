@@ -7,7 +7,8 @@ import UpgradeScripts from './upgrades.js'
 
 export { UpgradeScripts }
 
-import OSC from 'osc'
+import { createSocket } from 'node:dgram'
+import { Server } from 'node-osc'
 import { Bonjour } from '@julusian/bonjour-service'
 
 export default class MittiInstance extends InstanceBase {
@@ -111,9 +112,7 @@ export default class MittiInstance extends InstanceBase {
 	}
 
 	async destroy() {
-		if (this.listener) {
-			this.listener.close()
-		}
+		await this.closeListener()
 
 		this.stopTestService()
 		this.stopBonjourService()
@@ -184,20 +183,18 @@ export default class MittiInstance extends InstanceBase {
 		this.cues = {}
 		this.states = {}
 
-		if (this.listener) {
-			this.listener.close()
+		await this.closeListener()
+		const feedbackPort = Number(isNaN(parseInt(this.config.feedbackPort)) ? 51001 : this.config.feedbackPort)
+
+		const portError = await this.checkPortAvailable(feedbackPort)
+		if (portError) {
+			this.handleListenerError(portError)
+			return
 		}
-		const feedbackPort = isNaN(parseInt(this.config.feedbackPort)) ? 51001 : this.config.feedbackPort
 
-		this.listener = new OSC.UDPPort({
-			localAddress: '0.0.0.0',
-			localPort: feedbackPort,
-			metadata: true,
-		})
+		this.listener = new Server(feedbackPort, '0.0.0.0')
 
-		this.listener.open()
-
-		this.listener.on('ready', async () => {
+		this.listener.on('listening', async () => {
 			this.updateStatus(InstanceStatus.Ok)
 			this.connection.connected = true
 
@@ -212,44 +209,94 @@ export default class MittiInstance extends InstanceBase {
 			await this.startBonjourService()
 		})
 
-		this.listener.on('error', (err) => {
-			this.connection.connected = false
-			if (err.code == 'EADDRINUSE') {
-				this.log('error', `Error: Selected feedback port ${err.message.split(':')[1]} is already in use.`)
-				this.updateStatus(InstanceStatus.BadConfig, 'Feedback port conflict')
-			} else {
-				this.log('error', `Error: ${err.message}`)
-				this.updateStatus(InstanceStatus.BadConfig, 'Feedback Unavailable')
-			}
-		})
-
-		this.listener.on('message', (message) => {
-			const address = message?.address
-			const value = message?.args?.[0]?.value
-
-			if (!address || typeof address !== 'string') {
+		this.listener.on('error', (err, rinfo) => {
+			// node-osc reports undecodable packets as errors too (with rinfo); those don't affect the socket
+			if (rinfo) {
+				this.log('debug', `Ignoring malformed OSC packet from ${rinfo.address}: ${err.message}`)
 				return
 			}
+			this.handleListenerError(err)
+		})
 
-			if (address.match(/(^\/mitti\/current\/)/i)) {
-				const cueInfo = address.match(/(\/mitti\/current\/)(\S*)/i)
-				const param = cueInfo?.[2]
-				if (param) {
-					this.processCueUpdate('current', param, value)
-				}
-			} else if (address.match(/(^\/mitti\/\S*\/)/i)) {
-				const cueInfo = address.match(/(\/mitti\/)(\S*)(\/)(\S*)/i)
-				const cue = cueInfo?.[2]
-				const param = cueInfo?.[4]
+		this.listener.on('message', (message) => this.processOSCMessage(message))
+		this.listener.on('bundle', (bundle) => this.processOSCBundle(bundle))
+	}
 
-				if (cue && param && cue !== 'current') {
-					this.processCueUpdate(cue, param, value)
-				}
-			} else {
-				const sanitizedAddress = address.replace('/mitti/', '')
-				this.processListenerUpdate(sanitizedAddress, value)
+	handleListenerError(err) {
+		this.connection.connected = false
+		if (err.code == 'EADDRINUSE') {
+			this.log('error', `Error: Selected feedback port ${err.message.split(':')[1]} is already in use.`)
+			this.updateStatus(InstanceStatus.BadConfig, 'Feedback port conflict')
+		} else {
+			this.log('error', `Error: ${err.message}`)
+			this.updateStatus(InstanceStatus.BadConfig, 'Feedback Unavailable')
+		}
+	}
+
+	// node-osc always binds with reuseAddr, so a port clash never errors; probe with an exclusive bind first
+	checkPortAvailable(port) {
+		return new Promise((resolve) => {
+			const probe = createSocket({ type: 'udp4', reuseAddr: false })
+			probe.once('error', (err) => {
+				probe.close()
+				resolve(err)
+			})
+			probe.once('listening', () => probe.close(() => resolve(null)))
+			probe.bind(port, '0.0.0.0')
+		})
+	}
+
+	async closeListener() {
+		const listener = this.listener
+		if (!listener) return
+		this.listener = null
+		listener.removeAllListeners()
+		// Wait for the socket to release the port so a restart on the same port passes the availability check
+		await new Promise((resolve) => {
+			try {
+				listener.close(() => resolve())
+			} catch {
+				// Socket was never bound or is already closed
+				resolve()
 			}
 		})
+	}
+
+	processOSCBundle(bundle) {
+		for (const element of bundle.elements) {
+			if (element.elements) {
+				this.processOSCBundle(element)
+			} else {
+				this.processOSCMessage(element)
+			}
+		}
+	}
+
+	processOSCMessage(message) {
+		const [address, value] = message
+
+		if (!address || typeof address !== 'string') {
+			return
+		}
+
+		if (address.match(/(^\/mitti\/current\/)/i)) {
+			const cueInfo = address.match(/(\/mitti\/current\/)(\S*)/i)
+			const param = cueInfo?.[2]
+			if (param) {
+				this.processCueUpdate('current', param, value)
+			}
+		} else if (address.match(/(^\/mitti\/\S*\/)/i)) {
+			const cueInfo = address.match(/(\/mitti\/)(\S*)(\/)(\S*)/i)
+			const cue = cueInfo?.[2]
+			const param = cueInfo?.[4]
+
+			if (cue && param && cue !== 'current') {
+				this.processCueUpdate(cue, param, value)
+			}
+		} else {
+			const sanitizedAddress = address.replace('/mitti/', '')
+			this.processListenerUpdate(sanitizedAddress, value)
+		}
 	}
 
 	testConnection() {
