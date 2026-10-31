@@ -1,0 +1,270 @@
+import { beforeEach, describe, expect, test } from 'vitest'
+import type { MittiApi } from '../api.js'
+import {
+	createApi,
+	createFakeInstance,
+	feedbacksChecked,
+	flush,
+	receive,
+	variablesSet,
+	type FakeInstance,
+} from './helpers.js'
+
+// Message values below are taken from a real Mitti 2.8.19 session
+
+let fake: FakeInstance
+let api: MittiApi
+
+beforeEach(() => {
+	fake = createFakeInstance()
+	api = createApi(fake)
+})
+
+describe('player messages', () => {
+	test('cue names are passed through, with "-" shown as None', async () => {
+		receive(api, '/mitti/currentCueName', 'TestMovie.mp4')
+		receive(api, '/mitti/nextCueName', '-')
+		await flush()
+
+		expect(variablesSet(fake)).toEqual({ currentCueName: 'TestMovie.mp4', nextCueName: 'None' })
+		expect(fake.states.currentCueName).toBe('TestMovie.mp4')
+		expect(feedbacksChecked(fake)).toEqual(['activeCueName', 'playingCueID', 'playingCueName'])
+	})
+
+	test('time left drops frames and the hours when they are zero', async () => {
+		receive(api, '/mitti/cueTimeLeft', '-00:02:55:22')
+		await flush()
+
+		expect(variablesSet(fake)).toEqual({
+			cueTimeLeft: '-02:55',
+			cueTimeLeft_hhmmss: '-00:02:55',
+			cueTimeLeft_h: '00',
+			cueTimeLeft_m: '02',
+			cueTimeLeft_s: '55',
+		})
+		expect(fake.states.timeRemaining).toBe(175)
+		expect(feedbacksChecked(fake)).toEqual(['timeRemaining'])
+	})
+
+	test('time remaining counts hours as 3600 seconds', async () => {
+		receive(api, '/mitti/cueTimeLeft', '-01:02:03:00')
+		await flush()
+
+		expect(fake.states.timeRemaining).toBe(3723)
+		expect(variablesSet(fake).cueTimeLeft).toBe('-01:02:03')
+	})
+
+	test('time elapsed keeps the hours in the short form', async () => {
+		receive(api, '/mitti/cueTimeElapsed', '01:05:09:12')
+		await flush()
+
+		expect(variablesSet(fake)).toMatchObject({ cueTimeElapsed: '01:05:09', cueTimeElapsed_hhmmss: '01:05:09' })
+	})
+
+	test('malformed timecodes are ignored', async () => {
+		receive(api, '/mitti/cueTimeLeft', 'junk')
+		receive(api, '/mitti/cueTimeElapsed', '-00:00:01:00')
+		await flush()
+
+		expect(fake.setVariableValues).not.toHaveBeenCalled()
+		expect(fake.states.timeRemaining).toBeUndefined()
+	})
+
+	test('play state and outputs map to their variables', async () => {
+		receive(api, '/mitti/togglePlay', 0)
+		receive(api, '/mitti/toggleVideoOutputs', 1)
+		receive(api, '/mitti/toggleAudio', 0)
+		await flush()
+
+		expect(variablesSet(fake)).toEqual({ playStatus: 'Paused', video_outputs: 'Active', audio_outputs: 'Off' })
+		expect(fake.states).toMatchObject({ playing: 'Paused', videoOutputs: true, audioOutputs: false })
+	})
+
+	test('the current cue volume does not overwrite the current cue name', async () => {
+		receive(api, '/mitti/currentCueVolume', -6.456)
+		await flush()
+
+		expect(variablesSet(fake)).toEqual({ currentCueVolume: -6.46 })
+	})
+
+	test('pong only updates the heartbeat', async () => {
+		receive(api, '/mitti/pong')
+		await flush()
+
+		expect(api['connection'].lastPong).toBeTypeOf('number')
+		expect(fake.setVariableValues).not.toHaveBeenCalled()
+	})
+})
+
+describe('current cue messages', () => {
+	test('toggles become On / Off, except audio which is Muted / Unmuted', async () => {
+		receive(api, '/mitti/current/toggleTransition', 1)
+		receive(api, '/mitti/current/toggleLoop', 0)
+		receive(api, '/mitti/current/toggleAudio', 0)
+		await flush()
+
+		expect(variablesSet(fake)).toEqual({
+			currentCueTransition: 'On',
+			currentCueLoop: 'Off',
+			currentCueAudio: 'Muted',
+		})
+	})
+
+	test('volume is rounded and remembered for the adjust volume action', async () => {
+		receive(api, '/mitti/current/volumeAsDecibels', -3.6811299324035645)
+		await flush()
+
+		expect(variablesSet(fake)).toEqual({ currentCueVolume: -3.68 })
+		expect(fake.states.currentCueVolume).toBe(-3.6811299324035645)
+	})
+
+	test('playback speed is remembered for the adjust speed action', async () => {
+		receive(api, '/mitti/current/playbackSpeed', 100)
+		await flush()
+
+		expect(variablesSet(fake)).toEqual({ currentCuePlaybackSpeed: 100 })
+		expect(fake.states.currentCuePlaybackSpeed).toBe(100)
+	})
+})
+
+describe('playlist cue messages', () => {
+	test('a new cue is stored and schedules the per-cue definitions', () => {
+		receive(api, '/mitti/67/cueName', 'TestMovie.mp4')
+
+		expect(fake.cues['67']).toEqual({ cueName: 'TestMovie.mp4' })
+		expect(fake.scheduleCueDefinitions).toHaveBeenCalledOnce()
+	})
+
+	test('renaming a known cue updates its variable', async () => {
+		receive(api, '/mitti/67/cueName', 'Old')
+		receive(api, '/mitti/67/cueName', 'New')
+		await flush()
+
+		expect(variablesSet(fake)).toEqual({ cue_67_cueName: 'New' })
+	})
+
+	test('a toggle rechecks the matching feedback', async () => {
+		receive(api, '/mitti/67/toggleLoop', 1)
+		receive(api, '/mitti/67/toggleAudio', 1)
+		receive(api, '/mitti/67/brightness', 0)
+		await flush()
+
+		expect(fake.cues['67']).toEqual({ toggleLoop: 1, toggleAudio: 1, brightness: 0 })
+		expect(feedbacksChecked(fake)).toEqual(['cueAudioStatus', 'cueLoopStatus'])
+	})
+
+	test('deleting a cue removes it and schedules the per-cue definitions', () => {
+		receive(api, '/mitti/67/cueName', 'TestMovie.mp4')
+		fake.scheduleCueDefinitions.mockClear()
+		receive(api, '/mitti/67/deleted')
+
+		expect(fake.cues['67']).toBeUndefined()
+		expect(fake.scheduleCueDefinitions).toHaveBeenCalledOnce()
+	})
+
+	test('cue 0 is never treated as a new playlist cue', () => {
+		receive(api, '/mitti/0/cueName', 'Nothing')
+
+		expect(fake.scheduleCueDefinitions).not.toHaveBeenCalled()
+	})
+
+	test('cue names from the network cannot reach Object.prototype', async () => {
+		receive(api, '/mitti/__proto__/cueName', 'pwned')
+		receive(api, '/mitti/67/constructor', 1)
+		receive(api, '/mitti/67/toString', 1)
+		await flush()
+
+		expect(Object.hasOwn(fake.cues, '__proto__')).toBe(true)
+		expect('cueName' in {}).toBe(false)
+		expect(fake.checkFeedbacks).not.toHaveBeenCalled()
+	})
+
+	test('nested bundles are unpacked', async () => {
+		api['processOSCBundle']({
+			elements: [['/mitti/selectedCueID', '67'], { elements: [['/mitti/toggleVideoOutputs', 1]] }],
+		})
+		await flush()
+
+		expect(variablesSet(fake)).toEqual({ selectedCueID: '67', video_outputs: 'Active' })
+	})
+})
+
+describe('batching', () => {
+	test('a burst of messages becomes one call of each kind', async () => {
+		for (let cue = 1; cue <= 100; cue++) {
+			receive(api, `/mitti/${cue}/toggleLoop`, cue % 2)
+			receive(api, `/mitti/${cue}/toggleAudio`, cue % 2)
+		}
+		receive(api, '/mitti/currentCueName', 'A')
+		receive(api, '/mitti/selectedCueName', 'B')
+		await flush()
+
+		expect(fake.setVariableValues).toHaveBeenCalledOnce()
+		expect(fake.checkFeedbacks).toHaveBeenCalledOnce()
+	})
+
+	test('a resend of unchanged values sends nothing', async () => {
+		receive(api, '/mitti/currentCueName', 'A')
+		receive(api, '/mitti/67/toggleLoop', 1)
+		await flush()
+		fake.setVariableValues.mockClear()
+		fake.checkFeedbacks.mockClear()
+
+		receive(api, '/mitti/currentCueName', 'A')
+		receive(api, '/mitti/67/toggleLoop', 1)
+		await flush()
+
+		expect(fake.setVariableValues).not.toHaveBeenCalled()
+		expect(fake.checkFeedbacks).not.toHaveBeenCalled()
+	})
+
+	test('frame-by-frame timecodes only update Companion when the seconds change', async () => {
+		// Mitti sends playback timecodes about 30 times a second
+		for (const frame of ['14', '13', '12', '11']) {
+			receive(api, '/mitti/cueTimeLeft', `-00:03:54:${frame}`)
+			await flush()
+		}
+		receive(api, '/mitti/cueTimeLeft', '-00:03:53:29')
+		await flush()
+
+		expect(fake.setVariableValues).toHaveBeenCalledTimes(2)
+		expect(fake.checkFeedbacks).toHaveBeenCalledTimes(2)
+		expect(fake.setVariableValues.mock.calls[1][0]).toEqual({
+			cueTimeLeft: '-03:53',
+			cueTimeLeft_hhmmss: '-00:03:53',
+			cueTimeLeft_s: '53',
+		})
+	})
+})
+
+describe('sending commands', () => {
+	test('commands go to Mitti on its fixed port', () => {
+		api.sendCommand('play')
+
+		expect(fake.oscSend).toHaveBeenCalledWith('10.0.0.2', 51000, '/mitti/play', [])
+	})
+
+	test('values are sent as strings unless an integer is requested', () => {
+		api.sendValue('67/hueAsDegrees', 0, 's')
+		api.sendValue('playCueAtIndex', 3, 'i')
+
+		expect(fake.oscSend.mock.calls).toEqual([
+			['10.0.0.2', 51000, '/mitti/67/hueAsDegrees', [{ type: 's', value: '0' }]],
+			['10.0.0.2', 51000, '/mitti/playCueAtIndex', [{ type: 'i', value: 3 }]],
+		])
+	})
+
+	test('an empty value sends the bare command', () => {
+		api.sendValue('jumpToCueWithName', '', 's')
+
+		expect(fake.oscSend).toHaveBeenCalledWith('10.0.0.2', 51000, '/mitti/jumpToCueWithName', [])
+	})
+
+	test('nothing is sent without a host', () => {
+		const offline = createApi(fake, null)
+		offline.sendCommand('play')
+		offline.sendValue('playCueAtIndex', 3, 'i')
+
+		expect(fake.oscSend).not.toHaveBeenCalled()
+	})
+})

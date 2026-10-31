@@ -9,8 +9,8 @@ on:
   pull_request:
 
 jobs:
-  lint:
-    name: Lint
+  check:
+    name: Lint, types and tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -39,5 +39,15 @@ jobs:
       - name: Run lint
         run: |
           yarn lint
+        env:
+          CI: true
+      - name: Check types (including tests)
+        run: |
+          yarn check-types
+        env:
+          CI: true
+      - name: Run tests
+        run: |
+          yarn test
         env:
           CI: true
