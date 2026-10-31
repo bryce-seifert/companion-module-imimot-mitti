@@ -4,6 +4,7 @@ import { Bonjour, type Service } from '@julusian/bonjour-service'
 import { Server } from 'node-osc'
 import { CueToggleFeedbackIds } from './feedbacks.js'
 import type MittiInstance from './main.js'
+import { createRecord } from './utils.js'
 import type { VariablesSchema } from './variables.js'
 
 // Mitti always listens for OSC commands on this port
@@ -57,9 +58,14 @@ interface Timecode {
 	ss: string
 }
 
+const TIMECODE_PATTERNS = {
+	'': /^(\d\d):(\d\d):(\d\d)/,
+	'-': /^-(\d\d):(\d\d):(\d\d)/,
+}
+
 // Mitti reports times as `HH:MM:SS`, with a leading '-' for time remaining
 function parseTimecode(value: OscValue | undefined, sign: '' | '-'): Timecode | null {
-	const match = String(value).match(new RegExp(`^${sign}(\\d\\d):(\\d\\d):(\\d\\d)`))
+	const match = String(value).match(TIMECODE_PATTERNS[sign])
 	if (!match) return null
 	const [, hh, mm, ss] = match
 	return { sign, hh, mm, ss }
@@ -92,21 +98,39 @@ export class MittiApi {
 		bonjourService: null,
 	}
 
+	private pending: Promise<void> = Promise.resolve()
+
 	constructor(private readonly self: MittiInstance) {}
 
-	sendCommand(command: string, value?: OscValue, type?: 's' | 'i'): void {
-		if (!this.host) return
+	// Connects, disconnects and Bonjour changes run one at a time, so a slow port check can't leave a listener running
+	private async serialise(task: () => Promise<void>): Promise<void> {
+		const run = this.pending.then(task)
+		this.pending = run.catch(() => undefined)
+		return run
+	}
 
-		if (value || value === 0) {
-			this.self.oscSend(this.host, MITTI_OSC_PORT, `/mitti/${command}`, [
-				type === 'i' ? { type: 'i', value: Number(value) } : { type: 's', value: String(value) },
-			])
-		} else {
-			this.self.oscSend(this.host, MITTI_OSC_PORT, `/mitti/${command}`, [])
+	sendCommand(command: string): void {
+		if (!this.host) return
+		this.self.oscSend(this.host, MITTI_OSC_PORT, `/mitti/${command}`, [])
+	}
+
+	// Mitti takes values as strings unless the command needs an integer; an empty or unset value sends the bare command
+	sendValue(command: string, value: OscValue, type: 's' | 'i'): void {
+		if (!this.host) return
+		if (!value && value !== 0) {
+			this.sendCommand(command)
+			return
 		}
+		this.self.oscSend(this.host, MITTI_OSC_PORT, `/mitti/${command}`, [
+			type === 'i' ? { type: 'i', value: Number(value) } : { type: 's', value: String(value) },
+		])
 	}
 
 	async connect(): Promise<void> {
+		return this.serialise(async () => this.openListener())
+	}
+
+	private async openListener(): Promise<void> {
 		await this.closeListener()
 		const feedbackPort = this.self.config.feedbackPort
 
@@ -130,7 +154,7 @@ export class MittiApi {
 				this.stopTestService()
 			}
 
-			void this.startBonjourService()
+			void this.serialise(async () => this.startBonjourService())
 		})
 
 		this.listener.on('error', (err: NodeJS.ErrnoException, rinfo?: RemoteInfo) => {
@@ -350,10 +374,11 @@ export class MittiApi {
 	}
 
 	async disconnect(): Promise<void> {
-		await this.closeListener()
-
-		this.stopTestService()
-		void this.stopBonjourService()
+		return this.serialise(async () => {
+			await this.closeListener()
+			this.stopTestService()
+			await this.stopBonjourService()
+		})
 	}
 
 	private processListenerUpdate(address: string, value: OscValue | undefined): void {
@@ -438,7 +463,7 @@ export class MittiApi {
 
 	private processCueUpdate(cue: string, param: string, value: OscValue | undefined): void {
 		if (cue === 'current') {
-			this.self.cues[cue] ??= {}
+			this.self.cues[cue] ??= createRecord()
 			this.self.cues[cue][param] = value
 
 			let variableValue = value
@@ -467,27 +492,24 @@ export class MittiApi {
 
 			this.self.setVariableValues({ [variableId]: variableValue })
 		} else if (cue === 'previous' || cue === 'next') {
-			this.self.cues[cue] ??= {}
+			this.self.cues[cue] ??= createRecord()
 			this.self.cues[cue][param] = value
 		} else {
 			if (!this.self.cues[cue]?.cueName && cue !== '0' && param === 'cueName') {
-				this.self.cues[cue] ??= {}
+				this.self.cues[cue] ??= createRecord()
 				this.self.cues[cue][param] = value
-				this.self.initVariables()
-				this.self.initPresets()
-				this.self.setVariableValues({ [`cue_${cue}_cueName`]: value })
+				this.self.scheduleCueDefinitions()
 			} else if (this.self.cues[cue] && cue !== '0' && param === 'deleted') {
 				delete this.self.cues[cue]
-				this.self.initVariables()
-				this.self.initPresets()
+				this.self.scheduleCueDefinitions()
 			} else {
-				this.self.cues[cue] ??= {}
+				this.self.cues[cue] ??= createRecord()
 				this.self.cues[cue][param] = value
 
 				if (param === 'cueName') {
 					this.self.setVariableValues({ [`cue_${cue}_cueName`]: value })
 				}
-				const feedbackId = CueToggleFeedbackIds[param]
+				const feedbackId = CueToggleFeedbackIds.get(param)
 				if (feedbackId) {
 					this.self.checkFeedbacks(feedbackId)
 				}

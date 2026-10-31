@@ -205,7 +205,7 @@ export function getActions(self: MittiInstance): CompanionActionDefinitions<Acti
 			...definition,
 			options: [cueOption, { ...value, type: 'number', id: 'value' as const }],
 			callback: (action) => {
-				self.api.sendCommand(`${conformCueID(action.options.cuenumber)}/${command}`, action.options.value)
+				self.api.sendValue(`${conformCueID(action.options.cuenumber)}/${command}`, action.options.value, 's')
 			},
 		})),
 		play_select: {
@@ -239,7 +239,7 @@ export function getActions(self: MittiInstance): CompanionActionDefinitions<Acti
 			],
 			callback: (action) => {
 				const value = action.options.string
-				self.api.sendCommand('jumpToCueWithName', value)
+				self.api.sendValue('jumpToCueWithName', value, 's')
 			},
 		},
 		play_cue: {
@@ -263,9 +263,9 @@ export function getActions(self: MittiInstance): CompanionActionDefinitions<Acti
 			callback: (action) => {
 				const cueID = conformCueID(action.options.cuenumber)
 				if (action.options.forceCut) {
-					self.api.sendCommand(`playCueWithCueIDForceCut`, cueID)
+					self.api.sendValue(`playCueWithCueIDForceCut`, cueID, 's')
 				} else {
-					self.api.sendCommand(`playCueWithCueID`, cueID)
+					self.api.sendValue(`playCueWithCueID`, cueID, 's')
 				}
 			},
 		},
@@ -295,9 +295,9 @@ export function getActions(self: MittiInstance): CompanionActionDefinitions<Acti
 					self.log('warn', 'Index must be a number between 1 and 999')
 				} else {
 					if (action.options.forceCut) {
-						self.api.sendCommand(`playCueAtIndexForceCut`, index, 'i')
+						self.api.sendValue(`playCueAtIndexForceCut`, index, 'i')
 					} else {
-						self.api.sendCommand(`playCueAtIndex`, index, 'i')
+						self.api.sendValue(`playCueAtIndex`, index, 'i')
 					}
 				}
 			},
@@ -322,9 +322,9 @@ export function getActions(self: MittiInstance): CompanionActionDefinitions<Acti
 			callback: (action) => {
 				const value = action.options.string
 				if (action.options.forceCut) {
-					self.api.sendCommand('playCueWithNameForceCut', value)
+					self.api.sendValue('playCueWithNameForceCut', value, 's')
 				} else {
-					self.api.sendCommand('playCueWithName', value)
+					self.api.sendValue('playCueWithName', value, 's')
 				}
 			},
 		},
@@ -349,9 +349,10 @@ export function getActions(self: MittiInstance): CompanionActionDefinitions<Acti
 				},
 			],
 			callback: (action) => {
-				self.api.sendCommand(
+				self.api.sendValue(
 					`${conformCueID(action.options.cuenumber)}/setGotoToCueID`,
 					`${conformCueID(action.options.gotoCue)}`,
+					's',
 				)
 			},
 		},
@@ -404,10 +405,10 @@ export function getActions(self: MittiInstance): CompanionActionDefinitions<Acti
 			callback: (action) => {
 				const cue = conformCueID(action.options.cuenumber)
 				if (action.options.splitScale) {
-					self.api.sendCommand(`${cue}/scaleHAsPercent`, action.options.valueH)
-					self.api.sendCommand(`${cue}/scaleVAsPercent`, action.options.valueV)
+					self.api.sendValue(`${cue}/scaleHAsPercent`, action.options.valueH, 's')
+					self.api.sendValue(`${cue}/scaleVAsPercent`, action.options.valueV, 's')
 				} else {
-					self.api.sendCommand(`${cue}/scaleAsPercent`, action.options.value)
+					self.api.sendValue(`${cue}/scaleAsPercent`, action.options.value, 's')
 				}
 			},
 		},
@@ -435,10 +436,10 @@ export function getActions(self: MittiInstance): CompanionActionDefinitions<Acti
 			],
 			callback: (action) => {
 				if (action.options.valueX) {
-					self.api.sendCommand(`${conformCueID(action.options.cuenumber)}/posXAsPixels`, action.options.valueX)
+					self.api.sendValue(`${conformCueID(action.options.cuenumber)}/posXAsPixels`, action.options.valueX, 's')
 				}
 				if (action.options.valueY) {
-					self.api.sendCommand(`${conformCueID(action.options.cuenumber)}/posYAsPixels`, action.options.valueY)
+					self.api.sendValue(`${conformCueID(action.options.cuenumber)}/posYAsPixels`, action.options.valueY, 's')
 				}
 			},
 		},
@@ -476,18 +477,27 @@ export function getActions(self: MittiInstance): CompanionActionDefinitions<Acti
 			],
 			callback: (action) => {
 				if (action.options.valueLeft) {
-					self.api.sendCommand(`${conformCueID(action.options.cuenumber)}/cropLeftAsPixels`, action.options.valueLeft)
+					self.api.sendValue(
+						`${conformCueID(action.options.cuenumber)}/cropLeftAsPixels`,
+						action.options.valueLeft,
+						's',
+					)
 				}
 				if (action.options.valueRight) {
-					self.api.sendCommand(`${conformCueID(action.options.cuenumber)}/cropRightAsPixels`, action.options.valueRight)
+					self.api.sendValue(
+						`${conformCueID(action.options.cuenumber)}/cropRightAsPixels`,
+						action.options.valueRight,
+						's',
+					)
 				}
 				if (action.options.valueTop) {
-					self.api.sendCommand(`${conformCueID(action.options.cuenumber)}/cropTopAsPixels`, action.options.valueTop)
+					self.api.sendValue(`${conformCueID(action.options.cuenumber)}/cropTopAsPixels`, action.options.valueTop, 's')
 				}
 				if (action.options.valueBottom) {
-					self.api.sendCommand(
+					self.api.sendValue(
 						`${conformCueID(action.options.cuenumber)}/cropBottomAsPixels`,
 						action.options.valueBottom,
+						's',
 					)
 				}
 			},
@@ -513,7 +523,7 @@ export function getActions(self: MittiInstance): CompanionActionDefinitions<Acti
 					if (newValue > 12) {
 						newValue = 12
 					}
-					self.api.sendCommand(`current/volumeAsDecibels`, newValue)
+					self.api.sendValue(`current/volumeAsDecibels`, newValue, 's')
 				}
 			},
 		},
@@ -546,7 +556,7 @@ export function getActions(self: MittiInstance): CompanionActionDefinitions<Acti
 				if (action.options.mode == 'auto') {
 					self.api.sendCommand(`autoFade`)
 				} else {
-					self.api.sendCommand(`mainFader`, action.options.value / 100)
+					self.api.sendValue(`mainFader`, action.options.value / 100, 's')
 				}
 			},
 		},
@@ -575,7 +585,7 @@ export function getActions(self: MittiInstance): CompanionActionDefinitions<Acti
 				if (newValue > 1) {
 					newValue = 1
 				}
-				self.api.sendCommand(`playhead`, newValue)
+				self.api.sendValue(`playhead`, newValue, 's')
 			},
 		},
 		scrubPlayhead: {
@@ -594,7 +604,7 @@ export function getActions(self: MittiInstance): CompanionActionDefinitions<Acti
 			],
 			callback: (action) => {
 				const value = action.options.value
-				self.api.sendCommand(`playheadScrub`, value)
+				self.api.sendValue(`playheadScrub`, value, 's')
 			},
 		},
 		locatePlayhead: {
@@ -611,7 +621,7 @@ export function getActions(self: MittiInstance): CompanionActionDefinitions<Acti
 			],
 			callback: (action) => {
 				const value = action.options.value
-				self.api.sendCommand(`locateCurrentCue`, value)
+				self.api.sendValue(`locateCurrentCue`, value, 's')
 			},
 		},
 		adjustPlaybackSpeed: {
@@ -635,7 +645,7 @@ export function getActions(self: MittiInstance): CompanionActionDefinitions<Acti
 					if (newValue > 1200) {
 						newValue = 1200
 					}
-					self.api.sendCommand(`current/playbackSpeed`, newValue)
+					self.api.sendValue(`current/playbackSpeed`, newValue, 's')
 				}
 			},
 		},

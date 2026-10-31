@@ -57,7 +57,7 @@ const CueToggleFeedbacks = {
 } as const satisfies Record<string, FeedbackText & { field: string }>
 
 // The feedback to recheck when a cue's toggle field changes, eg `toggleLoop` -> `cueLoopStatus`
-export const CueToggleFeedbackIds: Partial<Record<string, keyof typeof CueToggleFeedbacks>> = Object.fromEntries(
+export const CueToggleFeedbackIds = new Map<string, keyof typeof CueToggleFeedbacks>(
 	Object.entries(CueToggleFeedbacks).map(([id, { field }]) => [field, id as keyof typeof CueToggleFeedbacks]),
 )
 

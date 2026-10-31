@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - Config: Changing the IP address to an invalid value now disconnects, instead of continuing to use the previous address
+- Feedback messages with unexpected cue names can no longer corrupt module state
 - Feedback: Time Remaining on Playing Cue was incorrect for cues longer than one hour
 - Variable: `cueTimeElapsed` showed the minutes in place of the hours for cues longer than one hour
 - Variable: `currentCueName` could be overwritten by the current cue's volume

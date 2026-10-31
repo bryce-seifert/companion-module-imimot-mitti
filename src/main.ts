@@ -1,11 +1,12 @@
 import { InstanceBase, InstanceStatus, type SomeCompanionConfigField } from '@companion-module/base'
 import { getActions, type ActionsSchema } from './actions.js'
 import { MittiApi, type CueState, type MittiState } from './api.js'
-import { DEFAULT_FEEDBACK_PORT, getConfigFields, getMittiHost, type MittiConfig } from './config.js'
+import { DEFAULT_FEEDBACK_PORT, getConfigFields, getMittiHost, isValidPort, type MittiConfig } from './config.js'
 import { getFeedbacks, type FeedbacksSchema } from './feedbacks.js'
 import { getPresets } from './presets.js'
 import { UpgradeScripts } from './upgrades.js'
-import { getVariables, type VariablesSchema } from './variables.js'
+import { createRecord } from './utils.js'
+import { getCueVariableValues, getVariables, type VariablesSchema } from './variables.js'
 
 export { UpgradeScripts }
 
@@ -19,7 +20,8 @@ export type ModuleSchema = {
 
 export default class MittiInstance extends InstanceBase<ModuleSchema> {
 	config: MittiConfig = { feedbackPort: DEFAULT_FEEDBACK_PORT }
-	cues: Record<string, CueState> = {}
+	cues: Record<string, CueState> = createRecord()
+	private cueDefinitionsTimer: NodeJS.Timeout | null = null
 	states: MittiState = {}
 	api = new MittiApi(this)
 
@@ -48,23 +50,31 @@ export default class MittiInstance extends InstanceBase<ModuleSchema> {
 		this.initVariables()
 		this.initFeedbacks()
 
-		if (this.api.host) {
+		const configError = !this.api.host
+			? 'Unable to determine IP Address'
+			: !isValidPort(config.feedbackPort)
+				? 'Invalid Feedback Port'
+				: null
+
+		if (configError) {
+			await this.api.disconnect()
+			this.updateStatus(InstanceStatus.BadConfig, configError)
+		} else {
 			this.updateStatus(InstanceStatus.Connecting)
 			void this.initOSC()
-		} else {
-			await this.api.disconnect()
-			this.updateStatus(InstanceStatus.BadConfig, 'Unable to determine IP Address')
 		}
 	}
 
 	async destroy(): Promise<void> {
+		if (this.cueDefinitionsTimer) clearTimeout(this.cueDefinitionsTimer)
 		await this.api.disconnect()
 
-		this.cues = {}
+		this.cues = createRecord()
 	}
 
 	initVariables(): void {
 		this.setVariableDefinitions(getVariables(this))
+		this.setVariableValues(getCueVariableValues(this))
 	}
 
 	initFeedbacks(): void {
@@ -76,12 +86,22 @@ export default class MittiInstance extends InstanceBase<ModuleSchema> {
 		this.setPresetDefinitions(structure, presets)
 	}
 
+	// Loading a playlist reports every cue in a burst, so rebuild the per-cue definitions once it settles
+	scheduleCueDefinitions(): void {
+		if (this.cueDefinitionsTimer) clearTimeout(this.cueDefinitionsTimer)
+		this.cueDefinitionsTimer = setTimeout(() => {
+			this.cueDefinitionsTimer = null
+			this.initVariables()
+			this.initPresets()
+		}, 100)
+	}
+
 	initActions(): void {
 		this.setActionDefinitions(getActions(this))
 	}
 
 	async initOSC(): Promise<void> {
-		this.cues = {}
+		this.cues = createRecord()
 		this.states = {}
 
 		await this.api.connect()

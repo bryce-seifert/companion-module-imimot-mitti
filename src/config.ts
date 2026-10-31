@@ -65,3 +65,7 @@ export function getMittiHost(config: MittiConfig): string | null {
 	const host = config.bonjourHost ? config.bonjourHost.split(':')[0] : config.host
 	return host && isIPv4(host) ? host : null
 }
+
+export function isValidPort(port: unknown): port is number {
+	return typeof port === 'number' && Number.isInteger(port) && port >= 1 && port <= 65535
+}

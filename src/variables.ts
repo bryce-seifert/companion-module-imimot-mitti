@@ -49,10 +49,16 @@ export function getVariables(self: MittiInstance): CompanionVariableDefinitions<
 
 	//Cue Variables
 	for (const cueID of playlistCueIDs(self.cues)) {
-		const cue = self.cues[cueID]
 		variables[`cue_${cueID}_cueName`] = { name: `Cue ${cueID} - Name` }
-		self.setVariableValues({ [`cue_${cueID}_cueName`]: cue?.cueName })
 	}
 
 	return variables
+}
+
+export function getCueVariableValues(self: MittiInstance): Partial<VariablesSchema> {
+	const values: Partial<VariablesSchema> = {}
+	for (const cueID of playlistCueIDs(self.cues)) {
+		values[`cue_${cueID}_cueName`] = self.cues[cueID]?.cueName
+	}
+	return values
 }

@@ -11,6 +11,11 @@ export const MittiGray = combineRgb(77, 77, 77)
 export const ColorLime = combineRgb(0, 255, 0)
 export const ColorYellow = combineRgb(255, 255, 0)
 
+// Keys come from OSC addresses, so use a prototype-less object to keep names like `__proto__` as plain keys
+export function createRecord<T>(): Record<string, T> {
+	return Object.create(null) as Record<string, T>
+}
+
 // `cues` also holds state for the current/previous/next cues and Mitti's cue 0, which aren't real playlist cues
 const NON_PLAYLIST_CUES = new Set(['current', 'previous', 'next', '0'])
 

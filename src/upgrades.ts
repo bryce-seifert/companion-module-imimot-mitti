@@ -4,7 +4,7 @@ import {
 	type CompanionStaticUpgradeResult,
 	type CompanionStaticUpgradeScript,
 } from '@companion-module/base'
-import { DEFAULT_FEEDBACK_PORT, type MittiConfig } from './config.js'
+import { DEFAULT_FEEDBACK_PORT, isValidPort, type MittiConfig } from './config.js'
 
 const v3_2_0: CompanionStaticUpgradeScript<MittiConfig> = (_context, props) => {
 	const changes: CompanionStaticUpgradeResult<MittiConfig, undefined> = {
@@ -73,7 +73,7 @@ const v4_0_0: CompanionStaticUpgradeScript<MittiConfig> = (_context, props) => {
 		const storedPort: unknown = config.feedbackPort
 		if (typeof storedPort !== 'number') {
 			const port = parseInt(String(storedPort))
-			config.feedbackPort = isNaN(port) || port < 1 || port > 65535 ? DEFAULT_FEEDBACK_PORT : port
+			config.feedbackPort = isValidPort(port) ? port : DEFAULT_FEEDBACK_PORT
 			changes.updatedConfig = config
 		}
 	}
