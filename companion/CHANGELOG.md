@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Action: Play cue at index now uses a number field for the cue index. Existing values, including variables, are converted automatically.
 - Variable: `currentCueAudio` now reports "Muted" / "Unmuted" instead of "Off" / "On"
 - Module rewritten in TypeScript
+- Variable and feedback updates from Mitti are now batched, and unchanged values are no longer resent
 
 ### Fixed
 

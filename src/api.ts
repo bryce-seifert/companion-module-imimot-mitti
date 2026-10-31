@@ -1,8 +1,8 @@
 import { createSocket, type RemoteInfo } from 'node:dgram'
-import { InstanceStatus } from '@companion-module/base'
+import { InstanceStatus, type CompanionVariableValue } from '@companion-module/base'
 import { Bonjour, type Service } from '@julusian/bonjour-service'
 import { Server } from 'node-osc'
-import { CueToggleFeedbackIds } from './feedbacks.js'
+import { CueToggleFeedbackIds, type FeedbacksSchema } from './feedbacks.js'
 import type MittiInstance from './main.js'
 import { createRecord } from './utils.js'
 import type { VariablesSchema } from './variables.js'
@@ -29,6 +29,8 @@ export interface MittiState {
 	currentCueVolume?: number
 	currentCuePlaybackSpeed?: number
 }
+
+type FeedbackId = keyof FeedbacksSchema & string
 
 type OscMessage = [string, ...unknown[]]
 type OscBundle = { elements: (OscMessage | OscBundle)[] }
@@ -99,6 +101,11 @@ export class MittiApi {
 	}
 
 	private pending: Promise<void> = Promise.resolve()
+	private lastListenerValues = new Map<string, OscValue | undefined>()
+	private pendingVariables: Partial<VariablesSchema> = {}
+	private sentVariables = new Map<string, CompanionVariableValue | undefined>()
+	private pendingFeedbacks = new Set<FeedbackId>()
+	private flushScheduled = false
 
 	constructor(private readonly self: MittiInstance) {}
 
@@ -132,6 +139,8 @@ export class MittiApi {
 
 	private async openListener(): Promise<void> {
 		await this.closeListener()
+		this.lastListenerValues.clear()
+		this.sentVariables.clear()
 		const feedbackPort = this.self.config.feedbackPort
 
 		const portError = await this.checkPortAvailable(feedbackPort)
@@ -373,49 +382,90 @@ export class MittiApi {
 		}
 	}
 
+	// Mitti reports a whole playlist in a burst, so updates are collected and sent to Companion once per tick
+	private setVariables(values: Partial<VariablesSchema>): void {
+		Object.assign(this.pendingVariables, values)
+		this.scheduleFlush()
+	}
+
+	private checkFeedbacks(...feedbackIds: FeedbackId[]): void {
+		for (const id of feedbackIds) this.pendingFeedbacks.add(id)
+		this.scheduleFlush()
+	}
+
+	private scheduleFlush(): void {
+		if (this.flushScheduled) return
+		this.flushScheduled = true
+		setImmediate(() => {
+			this.flushScheduled = false
+			// Timecodes arrive every frame but the variables only show whole seconds, so most updates repeat the last value
+			const variables: Record<string, CompanionVariableValue | undefined> = {}
+			for (const [id, value] of Object.entries(this.pendingVariables)) {
+				if (this.sentVariables.get(id) === value) continue
+				this.sentVariables.set(id, value)
+				variables[id] = value
+			}
+			const [firstFeedback, ...otherFeedbacks] = this.pendingFeedbacks
+			this.pendingVariables = {}
+			this.pendingFeedbacks = new Set()
+
+			if (Object.keys(variables).length > 0) this.self.setVariableValues(variables)
+			if (firstFeedback) this.self.checkFeedbacks(firstFeedback, ...otherFeedbacks)
+		})
+	}
+
 	async disconnect(): Promise<void> {
 		return this.serialise(async () => {
 			await this.closeListener()
+			this.pendingVariables = {}
+			this.pendingFeedbacks.clear()
 			this.stopTestService()
 			await this.stopBonjourService()
 		})
 	}
 
 	private processListenerUpdate(address: string, value: OscValue | undefined): void {
+		// Mitti resends values that haven't changed, eg on resendOSCFeedback or while a cue plays
+		if (this.lastListenerValues.has(address) && this.lastListenerValues.get(address) === value) return
+		this.lastListenerValues.set(address, value)
+
 		switch (address) {
 			case 'currentCueName':
 				this.self.states.currentCueName = value
-				this.self.setVariableValues({ currentCueName: displayValue(value) })
-				this.self.checkFeedbacks('playingCueName', 'playingCueID', 'activeCueName')
+				this.setVariables({ currentCueName: displayValue(value) })
+				this.checkFeedbacks('playingCueName', 'playingCueID', 'activeCueName')
 				break
 			case 'currentCueID':
 				this.self.states.currentCueID = value
-				this.self.setVariableValues({ currentCueID: displayValue(value) })
-				this.self.checkFeedbacks('playingCueName', 'playingCueID', 'activeCueID')
+				this.setVariables({ currentCueID: displayValue(value) })
+				this.checkFeedbacks('playingCueName', 'playingCueID', 'activeCueID')
 				break
 			case 'previousCueName':
-				this.self.setVariableValues({ previousCueName: displayValue(value) })
+				this.setVariables({ previousCueName: displayValue(value) })
 				break
 			case 'nextCueName':
-				this.self.setVariableValues({ nextCueName: displayValue(value) })
+				this.setVariables({ nextCueName: displayValue(value) })
 				break
 			case 'selectedCueName':
 				this.self.states.selectedCueName = value
-				this.self.setVariableValues({ selectedCueName: displayValue(value) })
-				this.self.checkFeedbacks('selectedCueName')
+				this.setVariables({ selectedCueName: displayValue(value) })
+				this.checkFeedbacks('selectedCueName')
 				break
 			case 'selectedCueID':
 				this.self.states.selectedCueID = value
-				this.self.setVariableValues({ selectedCueID: displayValue(value) })
-				this.self.checkFeedbacks('selectedCueID')
+				this.setVariables({ selectedCueID: displayValue(value) })
+				this.checkFeedbacks('selectedCueID')
 				break
 			case 'cueTimeLeft':
 				{
 					const time = parseTimecode(value, '-')
 					if (time) {
-						this.self.setVariableValues(timecodeVariables('cueTimeLeft', time))
-						this.self.states.timeRemaining = parseInt(time.hh) * 3600 + parseInt(time.mm) * 60 + parseInt(time.ss)
-						this.self.checkFeedbacks('timeRemaining')
+						this.setVariables(timecodeVariables('cueTimeLeft', time))
+						const timeRemaining = parseInt(time.hh) * 3600 + parseInt(time.mm) * 60 + parseInt(time.ss)
+						if (timeRemaining !== this.self.states.timeRemaining) {
+							this.self.states.timeRemaining = timeRemaining
+							this.checkFeedbacks('timeRemaining')
+						}
 					}
 				}
 				break
@@ -423,38 +473,38 @@ export class MittiApi {
 			case 'currentCueTRT':
 				{
 					const time = parseTimecode(value, '')
-					if (time) this.self.setVariableValues(timecodeVariables(address, time))
+					if (time) this.setVariables(timecodeVariables(address, time))
 				}
 				break
 			case 'currentCueVolume':
 				this.self.states.currentCueVolume = Number(value)
-				this.self.setVariableValues({ currentCueVolume: roundVolume(value) })
+				this.setVariables({ currentCueVolume: roundVolume(value) })
 				break
 			case 'togglePlay':
 				this.self.states.playing = value === 0 ? 'Paused' : 'Playing'
-				this.self.setVariableValues({ playStatus: this.self.states.playing })
-				this.self.checkFeedbacks('playStatus', 'playingCueName', 'playingCueID')
+				this.setVariables({ playStatus: this.self.states.playing })
+				this.checkFeedbacks('playStatus', 'playingCueName', 'playingCueID')
 				break
 			case 'playhead':
 				this.self.states.playhead = Number(value)
 				break
 			case 'toggleVideoOutputs':
 				this.self.states.videoOutputs = value == 1
-				this.self.setVariableValues({ video_outputs: this.self.states.videoOutputs ? 'Active' : 'Off' })
-				this.self.checkFeedbacks('videoOutputs')
+				this.setVariables({ video_outputs: this.self.states.videoOutputs ? 'Active' : 'Off' })
+				this.checkFeedbacks('videoOutputs')
 				break
 			case 'toggleAudio':
 				this.self.states.audioOutputs = value == 1
-				this.self.setVariableValues({ audio_outputs: this.self.states.audioOutputs ? 'Active' : 'Off' })
-				this.self.checkFeedbacks('audioOutputs')
+				this.setVariables({ audio_outputs: this.self.states.audioOutputs ? 'Active' : 'Off' })
+				this.checkFeedbacks('audioOutputs')
 				break
 			case 'inFromPlayheadEnabled':
 				this.self.states.inFromPlayheadEnabled = value == 1
-				this.self.checkFeedbacks('inFromPlayheadEnabled')
+				this.checkFeedbacks('inFromPlayheadEnabled')
 				break
 			case 'outFromPlayheadEnabled':
 				this.self.states.outFromPlayheadEnabled = value == 1
-				this.self.checkFeedbacks('outFromPlayheadEnabled')
+				this.checkFeedbacks('outFromPlayheadEnabled')
 				break
 			default:
 				break
@@ -462,6 +512,9 @@ export class MittiApi {
 	}
 
 	private processCueUpdate(cue: string, param: string, value: OscValue | undefined): void {
+		const cueState = this.self.cues[cue]
+		if (cueState && Object.hasOwn(cueState, param) && cueState[param] === value) return
+
 		if (cue === 'current') {
 			this.self.cues[cue] ??= createRecord()
 			this.self.cues[cue][param] = value
@@ -490,7 +543,7 @@ export class MittiApi {
 				variableId = `currentCue${name}`
 			}
 
-			this.self.setVariableValues({ [variableId]: variableValue })
+			this.setVariables({ [variableId]: variableValue })
 		} else if (cue === 'previous' || cue === 'next') {
 			this.self.cues[cue] ??= createRecord()
 			this.self.cues[cue][param] = value
@@ -507,11 +560,11 @@ export class MittiApi {
 				this.self.cues[cue][param] = value
 
 				if (param === 'cueName') {
-					this.self.setVariableValues({ [`cue_${cue}_cueName`]: value })
+					this.setVariables({ [`cue_${cue}_cueName`]: value })
 				}
 				const feedbackId = CueToggleFeedbackIds.get(param)
 				if (feedbackId) {
-					this.self.checkFeedbacks(feedbackId)
+					this.checkFeedbacks(feedbackId)
 				}
 			}
 		}
