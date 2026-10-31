@@ -28,7 +28,17 @@
 	},
 	"manufacturer": "Imimot",
 	"products": ["Mitti"],
-	"keywords": ["software", "video", "playback", "media"],
+	"keywords": [
+		"software",
+		"video",
+		"playback",
+		"playout",
+		"media",
+		"media player",
+		"media server",
+		"cue",
+		"exhibition"
+	],
 	"bonjourQueries": {
 		"bonjourHost": {
 			"type": "osc",

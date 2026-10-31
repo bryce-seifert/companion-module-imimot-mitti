@@ -275,7 +275,7 @@ export class MittiApi {
 		await this.stopBonjourService()
 
 		const feedbackPort = this.self.config.feedbackPort
-		const name = `Companion-Mitti-Module:${feedbackPort}`
+		const name = `Bitfocus-Mitti-Module:${feedbackPort}`
 
 		try {
 			const bonjour = new Bonjour()
