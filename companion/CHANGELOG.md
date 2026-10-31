@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
-- Requires Companion 5.0 or newer
+- Requires Companion v5.0.0 or newer, or Buttons v1.8.0 or newer
 - Any action or feedback field can now be driven by an expression
 - Presets are now organized into sections and groups
 - Config: Feedback Port is now a number field. Existing values are converted automatically.

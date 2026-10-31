@@ -61,7 +61,6 @@ const v3_9_0: CompanionStaticUpgradeScript<MittiConfig> = (_context, props) => {
 	return changes
 }
 
-// Feedback Port and the "Play cue at index" index changed from textinputs to number fields
 const v4_0_0: CompanionStaticUpgradeScript<MittiConfig> = (_context, props) => {
 	const changes: CompanionStaticUpgradeResult<MittiConfig, undefined> = {
 		updatedConfig: null,
