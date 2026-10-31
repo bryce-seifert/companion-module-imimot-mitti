@@ -1,5 +1,7 @@
 ## Mitti
 
+Requires Companion 5.0 or newer.
+
 **Basic Configuration**
 
 - In Mitti > Settings... > OSC/UDP Controls, select "Enable"
@@ -15,121 +17,12 @@
 
 ![Mitti](images/mitti.png?raw=true 'Mitti')
 
-**Available Actions**
+**What's Included**
 
-- Play
-- Toggle Play
-- Stop
-- Panic
-- Rewind
-- Jump to previous cue
-- Jump to next cue
-- Jump to specific cue
-- Jump to selected cue
-- Jump to cue with name
-- Select previous cue
-- Select next cue
-- Goto 30
-- Goto 20
-- Goto 10
-- Play Selected Cue
-- Play cue with number / ID
-- Play cue with name
-- Play cue at index
-- Toggle Fullscreen
-- Fullscreen On
-- Fullscreen Off
-- Toggle Playlist Loop
-- Playlist Loop On
-- Playlist Loop Off
-- Toggle Playlist Transition on Play
-- Transition on Play Off
-- Transition on Play On
-- Resend OSC Feedback
+- **Actions** for playlist transport (play, pause, rewind, panic, goto), cue selection and navigation, playing cues by number / ID, name or index, playlist settings, fullscreen, video and audio outputs, the master fader and playhead
+- **Cue actions** that change a cue's audio, volume, fades, loop, transition, goto, pause at beginning / end, playback speed, scale, position, crop, rotation and colour. Cue fields accept a cue number or ID, or `current`, `selected`, `previous`, `next` or `all`
+- **Feedbacks** for play / pause status, the playing, active and selected cue, per-cue settings, time remaining on the playing cue, video and audio outputs, and whether Set In / Out from Playhead is available
+- **Variables** for the current, previous, next and selected cue, play status, time remaining, time elapsed and total run time of the current cue, the current cue's settings, video and audio outputs, and a name variable for every cue in the playlist (`cue_<number>_cueName`)
+- **Presets** for all of the above, including a "Play Cue by ID" button for every cue in the playlist
 
-_Requires Mitti 2_
-
-- Cue Scale
-- Cue Position
-- Cue Crop
-- Cue Rotation
-- Cue Hue
-- Cue Saturation
-- Cue Vibrance
-- Cue Brightness
-- Cue Contrast
-- Cue Opacity
-- Set Cue Volume to Value
-- Set/ Adjust Cue Playback Speed
-- Adjust Current Cue Volume
-- Toggle Goto Cue after End
-- Goto after End On
-- Goto after End Off
-- Set Goto after End Cue
-- Master Fader
-- Toggle / On / Off Video Outputs
-- Toggle / On / Off Audio Outputs
-- Adjust Playhead
-- Scrub Playhead with Timecode
-- Locate Playhead with Timecode
-- Set In / Out from Playhead
-
-**Available Feedback**
-
-- Play/Pause Status
-- Cue Name - Playing
-- Cue Name - Active
-- Cue Name - Selected
-- Cue ID - Playing
-- Cue ID - Active
-- Cue ID - Selected
-- Cue ID - Audio Enabled
-- Cue ID - Pause at Beginning Enabled
-- Cue ID - Pause at End Enabled
-- Cue ID - Fade In Enabled
-- Cue ID - Fade Out Enabled
-- Cue ID - Loop Enabled
-- Cue ID - Transition Enabled
-- Cue ID - Goto Enabled
-- Set In / Out from Playhead Available
-- Time Remaining on Playing Cue
-- Video Outputs Active (requires Mitti 2)
-- Audio Outputs Active (requires Mitti 2)
-
-**Available Variables**
-
-- currentCueName
-- currentCueID (requires Mitti 2)
-- previousCueName
-- nextCueName
-- selectedCueName
-- selectedCueID (requires Mitti 2)
-- playStatus
-- cueTimeLeft (will shorten to MM:SS if less than 1 hour)
-- cueTimeLeft_hhmmss (will always show full HH:MM:SS timecode)
-- cueTimeLeft_h
-- cueTimeLeft_m
-- cueTimeLeft_s
-- cueTimeElapsed
-- cueTimeElapsed_hhmmss
-- cueTimeElapsed_h
-- cueTimeElapsed_m
-- cueTimeElapsed_s
-- currentCueTRT (will shorten to MM:SS if less than 1 hour)
-- currentCueTRT_hhmmss (will always show full HH:MM:SS timecode)
-- currentCueTRT_h
-- currentCueTRT_m
-- currentCueTRT_s
-- currentCueAudio
-- currentCuePauseAtBeginning
-- currentCuePauseAtEnd
-- currentCueFadeIn
-- currentCueFadeOut
-- currentCueLoop
-- currentCueTransition
-- currentCueGoto
-- currentCuePlaybackSpeed
-- cue\_(number)\_cueName (requires Mitti 2)
-- cue\_(number)\_audio (requires Mitti 2)
-- video_outputs (requires Mitti 2)
-- audio_outputs (requires Mitti 2)
+Many cue features require Mitti 2 or newer. Where a specific Mitti version is needed, the action or feedback description in Companion says so.
