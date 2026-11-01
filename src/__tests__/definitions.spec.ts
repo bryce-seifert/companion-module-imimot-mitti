@@ -7,8 +7,11 @@ import { asInstance, createApi, createFakeInstance } from './helpers.js'
 
 function withPlaylist() {
 	const fake = createFakeInstance()
-	for (const id of ['current', 'previous', 'next', '0', '1', 'AB12']) fake.cues[id] = {}
+	for (const id of ['current', 'previous', 'next', '0', '1', 'AB12', '99']) fake.cues[id] = {}
 	fake.cues['1'].cueName = 'Intro'
+	fake.cues['AB12'].cueName = 'Outro'
+	// A nameless entry, as left behind by stray updates for a deleted cue
+	fake.cues['99'].toggleLoop = 1
 	return fake
 }
 
@@ -57,7 +60,7 @@ describe('variables', () => {
 			'cue_1_cueName',
 			'cue_AB12_cueName',
 		])
-		expect(getCueVariableValues(self)).toEqual({ cue_1_cueName: 'Intro', cue_AB12_cueName: undefined })
+		expect(getCueVariableValues(self)).toEqual({ cue_1_cueName: 'Intro', cue_AB12_cueName: 'Outro' })
 	})
 })
 

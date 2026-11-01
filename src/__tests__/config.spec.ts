@@ -46,9 +46,10 @@ describe('conformCueID', () => {
 	})
 })
 
-test('playlistCueIDs skips the current/previous/next entries and cue 0', () => {
-	const cues = createRecord<object>()
-	for (const id of ['current', 'previous', 'next', '0', '1', 'AB12']) cues[id] = {}
+test('playlistCueIDs skips the current/previous/next entries, cue 0 and unnamed cues', () => {
+	const cues = createRecord<Record<string, string>>()
+	for (const id of ['current', 'previous', 'next', '0', '1', 'AB12']) cues[id] = { cueName: id }
+	cues['99'] = {}
 
 	expect(playlistCueIDs(cues)).toEqual(['1', 'AB12'])
 })

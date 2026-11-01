@@ -86,9 +86,9 @@ export default class MittiInstance extends InstanceBase<ModuleSchema> {
 		this.setPresetDefinitions(structure, presets)
 	}
 
-	// Loading a playlist reports every cue in a burst, so rebuild the per-cue definitions once it settles
+	// Loading or clearing a playlist reports every cue in a burst, so rebuild the per-cue definitions once
 	scheduleCueDefinitions(): void {
-		if (this.cueDefinitionsTimer) clearTimeout(this.cueDefinitionsTimer)
+		if (this.cueDefinitionsTimer) return
 		this.cueDefinitionsTimer = setTimeout(() => {
 			this.cueDefinitionsTimer = null
 			this.initVariables()

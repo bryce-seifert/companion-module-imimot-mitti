@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import type { MittiApi } from '../api.js'
 import {
 	createApi,
@@ -162,6 +162,48 @@ describe('playlist cue messages', () => {
 		expect(fake.scheduleCueDefinitions).toHaveBeenCalledOnce()
 	})
 
+	test('a repeated delete does not bring the cue back', () => {
+		receive(api, '/mitti/67/cueName', 'TestMovie.mp4')
+		receive(api, '/mitti/67/deleted')
+		fake.scheduleCueDefinitions.mockClear()
+		receive(api, '/mitti/67/deleted')
+
+		expect(fake.cues['67']).toBeUndefined()
+		expect(fake.scheduleCueDefinitions).not.toHaveBeenCalled()
+	})
+
+	test('deleting a cue rechecks the per-cue toggle feedbacks', async () => {
+		receive(api, '/mitti/67/toggleLoop', 1)
+		await flush()
+		fake.checkFeedbacks.mockClear()
+		receive(api, '/mitti/67/deleted')
+		await flush()
+
+		expect(feedbacksChecked(fake)).toContain('cueLoopStatus')
+	})
+
+	test('a rename pending when the cue is deleted is dropped', async () => {
+		receive(api, '/mitti/67/cueName', 'Old')
+		receive(api, '/mitti/67/cueName', 'New')
+		receive(api, '/mitti/67/deleted')
+		await flush()
+
+		expect(fake.setVariableValues).not.toHaveBeenCalled()
+	})
+
+	test('a new cue reusing a deleted ID gets its name sent again', async () => {
+		receive(api, '/mitti/67/cueName', 'Old')
+		receive(api, '/mitti/67/cueName', 'Same')
+		await flush()
+		receive(api, '/mitti/67/deleted')
+		receive(api, '/mitti/67/cueName', 'Other')
+		receive(api, '/mitti/67/cueName', 'Same')
+		fake.setVariableValues.mockClear()
+		await flush()
+
+		expect(variablesSet(fake)).toEqual({ cue_67_cueName: 'Same' })
+	})
+
 	test('cue 0 is never treated as a new playlist cue', () => {
 		receive(api, '/mitti/0/cueName', 'Nothing')
 
@@ -186,6 +228,79 @@ describe('playlist cue messages', () => {
 		await flush()
 
 		expect(variablesSet(fake)).toEqual({ selectedCueID: '67', video_outputs: 'Active' })
+	})
+})
+
+describe('resync after a delete', () => {
+	beforeEach(() => {
+		vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+		for (let id = 1; id <= 16; id++) receive(api, `/mitti/${id}/cueName`, `Cue ${id}`)
+		fake.scheduleCueDefinitions.mockClear()
+	})
+
+	afterEach(() => {
+		vi.useRealTimers()
+	})
+
+	const resends = () => fake.oscSend.mock.calls.filter(([, , address]) => address === '/mitti/resendOSCFeedback')
+
+	// What Mitti 2.8.19 sends for a resendOSCFeedback once cue 15 of 16 is deleted: the renumbered cues, then the player state
+	function replyWithCues(count: number) {
+		for (let id = 1; id <= count; id++) receive(api, `/mitti/${id}/cueName`, id === 15 ? 'Cue 16' : `Cue ${id}`)
+		receive(api, '/mitti/currentCueID', '1')
+		receive(api, '/mitti/selectedCueID', '-')
+	}
+
+	test('deleting a cue drops the last ID once Mitti renumbers the rest', async () => {
+		// Recorded from Mitti 2.8.19 when deleting cue 15: the later cue moves down and 16 is never mentioned again
+		receive(api, '/mitti/15/deleted', 'Cue 15')
+		receive(api, '/mitti/15/cueName', 'Cue 16')
+		receive(api, '/mitti/selectedCueID', '-')
+		expect(resends()).toHaveLength(0)
+
+		vi.advanceTimersByTime(100)
+		expect(resends()).toHaveLength(1)
+
+		replyWithCues(15)
+		await flush()
+
+		expect(Object.keys(fake.cues)).not.toContain('16')
+		expect(fake.cues['15']).toEqual({ cueName: 'Cue 16' })
+		expect(fake.scheduleCueDefinitions).toHaveBeenCalled()
+	})
+
+	test('a burst of deletes asks for the playlist once', () => {
+		for (let id = 1; id <= 16; id++) receive(api, `/mitti/1/deleted`, `Cue ${id}`)
+		vi.advanceTimersByTime(100)
+
+		expect(resends()).toHaveLength(1)
+	})
+
+	test('deleting every cue leaves none behind', () => {
+		for (let id = 1; id <= 16; id++) receive(api, `/mitti/1/deleted`, `Cue ${id}`)
+		vi.advanceTimersByTime(100)
+		receive(api, '/mitti/currentCueID', '-')
+		receive(api, '/mitti/selectedCueID', '-')
+
+		expect(Object.keys(fake.cues)).toEqual([])
+	})
+
+	test('cues are kept when the resend never completes', () => {
+		receive(api, '/mitti/15/deleted', 'Cue 15')
+		vi.advanceTimersByTime(100 + 2000)
+		receive(api, '/mitti/selectedCueID', '3')
+
+		expect(Object.keys(fake.cues)).toHaveLength(15)
+	})
+
+	test('a selection change before the resend is requested does not end it', () => {
+		receive(api, '/mitti/15/deleted', 'Cue 15')
+		receive(api, '/mitti/selectedCueID', '3')
+		vi.advanceTimersByTime(100)
+		replyWithCues(15)
+
+		expect(Object.keys(fake.cues)).toHaveLength(15)
+		expect(Object.keys(fake.cues)).not.toContain('16')
 	})
 })
 

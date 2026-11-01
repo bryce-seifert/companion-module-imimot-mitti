@@ -4,11 +4,16 @@ import { Bonjour, type Service } from '@julusian/bonjour-service'
 import { Server } from 'node-osc'
 import { CueToggleFeedbackIds, type FeedbacksSchema } from './feedbacks.js'
 import type MittiInstance from './main.js'
-import { createRecord } from './utils.js'
+import { createRecord, playlistCueIDs } from './utils.js'
 import type { VariablesSchema } from './variables.js'
 
 // Mitti always listens for OSC commands on this port
 const MITTI_OSC_PORT = 51000
+
+// Time for the rest of a delete burst to arrive before asking for the playlist again
+const CUE_RESYNC_DELAY = 100
+// Give up on a resend that never completes, leaving the cues as they are
+const CUE_RESYNC_TIMEOUT = 2000
 
 export type OscValue = string | number
 
@@ -107,6 +112,10 @@ export class MittiApi {
 	private pendingFeedbacks = new Set<FeedbackId>()
 	private flushScheduled = false
 
+	// Cue IDs reported by a resendOSCFeedback requested after a delete, or null when none is in progress
+	private resyncSeenCues: Set<string> | null = null
+	private resyncTimer: NodeJS.Timeout | null = null
+
 	constructor(private readonly self: MittiInstance) {}
 
 	// Connects, disconnects and Bonjour changes run one at a time, so a slow port check can't leave a listener running
@@ -139,6 +148,7 @@ export class MittiApi {
 
 	private async openListener(): Promise<void> {
 		await this.closeListener()
+		this.cancelCueResync()
 		this.lastListenerValues.clear()
 		this.sentVariables.clear()
 		const feedbackPort = this.self.config.feedbackPort
@@ -417,6 +427,7 @@ export class MittiApi {
 	async disconnect(): Promise<void> {
 		return this.serialise(async () => {
 			await this.closeListener()
+			this.cancelCueResync()
 			this.pendingVariables = {}
 			this.pendingFeedbacks.clear()
 			this.stopTestService()
@@ -425,6 +436,9 @@ export class MittiApi {
 	}
 
 	private processListenerUpdate(address: string, value: OscValue | undefined): void {
+		// selectedCueID follows every cue in a resendOSCFeedback
+		if (address === 'selectedCueID' && this.resyncSeenCues) this.finishCueResync(this.resyncSeenCues)
+
 		// Mitti resends values that haven't changed, eg on resendOSCFeedback or while a cue plays
 		if (this.lastListenerValues.has(address) && this.lastListenerValues.get(address) === value) return
 		this.lastListenerValues.set(address, value)
@@ -512,6 +526,8 @@ export class MittiApi {
 	}
 
 	private processCueUpdate(cue: string, param: string, value: OscValue | undefined): void {
+		if (param === 'cueName') this.resyncSeenCues?.add(cue)
+
 		const cueState = this.self.cues[cue]
 		if (cueState && Object.hasOwn(cueState, param) && cueState[param] === value) return
 
@@ -547,13 +563,14 @@ export class MittiApi {
 		} else if (cue === 'previous' || cue === 'next') {
 			this.self.cues[cue] ??= createRecord()
 			this.self.cues[cue][param] = value
+		} else if (param === 'deleted') {
+			// Mitti can repeat `deleted`, so it must never create a cue
+			if (this.self.cues[cue]) this.removeCues([cue])
+			this.scheduleCueResync()
 		} else {
 			if (!this.self.cues[cue]?.cueName && cue !== '0' && param === 'cueName') {
 				this.self.cues[cue] ??= createRecord()
 				this.self.cues[cue][param] = value
-				this.self.scheduleCueDefinitions()
-			} else if (this.self.cues[cue] && cue !== '0' && param === 'deleted') {
-				delete this.self.cues[cue]
 				this.self.scheduleCueDefinitions()
 			} else {
 				this.self.cues[cue] ??= createRecord()
@@ -568,5 +585,38 @@ export class MittiApi {
 				}
 			}
 		}
+	}
+
+	private removeCues(cueIDs: string[]): void {
+		for (const cue of cueIDs) {
+			delete this.self.cues[cue]
+			// A new cue can reuse the ID, so its name must not be skipped as already sent
+			delete this.pendingVariables[`cue_${cue}_cueName`]
+			this.sentVariables.delete(`cue_${cue}_cueName`)
+		}
+		this.checkFeedbacks(...CueToggleFeedbackIds.values())
+		this.self.scheduleCueDefinitions()
+	}
+
+	// Deleting a cue renumbers the ones after it, so fetch the whole playlist again and drop the cues
+	private scheduleCueResync(): void {
+		this.cancelCueResync()
+		this.resyncTimer = setTimeout(() => {
+			this.resyncSeenCues = new Set()
+			this.sendCommand('resendOSCFeedback')
+			this.resyncTimer = setTimeout(() => this.cancelCueResync(), CUE_RESYNC_TIMEOUT)
+		}, CUE_RESYNC_DELAY)
+	}
+
+	private finishCueResync(seenCues: Set<string>): void {
+		this.cancelCueResync()
+		const removed = playlistCueIDs(this.self.cues).filter((cue) => !seenCues.has(cue))
+		if (removed.length > 0) this.removeCues(removed)
+	}
+
+	private cancelCueResync(): void {
+		if (this.resyncTimer) clearTimeout(this.resyncTimer)
+		this.resyncTimer = null
+		this.resyncSeenCues = null
 	}
 }

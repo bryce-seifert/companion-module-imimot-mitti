@@ -19,8 +19,9 @@ export function createRecord<T>(): Record<string, T> {
 // `cues` also holds state for the current/previous/next cues and Mitti's cue 0, which aren't real playlist cues
 const NON_PLAYLIST_CUES = new Set(['current', 'previous', 'next', '0'])
 
+// A cue only counts once Mitti has named it; stray updates for a deleted cue can recreate a nameless entry
 export function playlistCueIDs(cues: Record<string, CueState>): string[] {
-	return Object.keys(cues).filter((cueID) => !NON_PLAYLIST_CUES.has(cueID))
+	return Object.keys(cues).filter((cueID) => !NON_PLAYLIST_CUES.has(cueID) && cues[cueID]?.cueName !== undefined)
 }
 
 export function conformCueID(cueID: string): string {
