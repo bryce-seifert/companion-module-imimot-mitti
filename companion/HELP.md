@@ -7,7 +7,7 @@ This module will allow you to control [Mitti](https://imimot.com/mitti), a moder
 - Mitti with OSC control enabled
 - Bitfocus Buttons: v1.8.0 or newer
 - Bitfocus Companion: v5.0.0 or newer
-- Some features require specific version of Mitti. The action or feedback description will contain information about version requirements if applicable.
+- Some features require specific a version of Mitti. The action or feedback description will contain information about version requirements if applicable.
 
 ## Basic Configuration
 

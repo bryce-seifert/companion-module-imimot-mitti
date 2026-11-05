@@ -8,7 +8,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- Presets: Selected Cue display with Play Selected on press, dedicated speed and volume resets, and a volume display with cue mute status
 - Feedbacks: Current Cue - Audio Muted and Selected Cue - Playing
 - Variables: `cueTimeLeft_seconds`, `cueTimeElapsed_seconds` and `currentCueTRT_seconds` expose the total seconds for calculations and progress displays
 
@@ -16,15 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Requires Companion v5.0.0 or newer, or Buttons v1.8.0 or newer
 - Any action or feedback field can now be driven by an expression
-- Presets are now organized into sections and groups
-- Presets redesigned to match Mitti with neutral charcoal backgrounds, cyan enabled-state accents and cue selection markers, separate context labels and large values, and matching vector transport icons including a circular Play button. Simple text variants are included for Bitfocus Buttons.
-- Output presets combine live status and toggling in one button, alongside explicit On / Off buttons.
-- Tracked cue setting toggles display their live state. Pause / Resume changes its label and symbol to show the next action.
-- Play presets now indicate playback: Play Playlist lights green during playback, while Play Selected lights green only when the selected cue is playing.
-- Presets keep unknown states neutral and display missing values as `—`. Repeated toggle captions are removed, cue audio uses Mute / Unmute labels, and adjustment groups follow a consistent order.
-- Elapsed and remaining time presets include a cue-progress strip in Companion. Cue names remain white, with cyan context labels and selection markers.
-- Rotary presets now show live speed and volume values with turn / press hints. An elapsed-time preset joins the run-time and remaining-time displays.
-- Countdown presets now stay amber below 10 seconds and red below 5 seconds, with a single dim pulse at 1 second remaining.
+- Redesigned presets
 - Config: Feedback Port is now a number field. Existing values are converted automatically.
 - Action: Play cue at index now uses a number field for the cue index. Existing values, including variables, are converted automatically.
 - Variable: `currentCueAudio` now reports "Muted" / "Unmuted" instead of "Off" / "On"
@@ -33,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- Deleted or renumbered cues no longer leave stale variables or presets
 - Presets: Off buttons no longer highlight before feedback has established their state
 - Presets: Register feedback definitions before presets to avoid unknown feedback warnings on startup
 - Config: Changing the IP address to an invalid value now disconnects, instead of continuing to use the previous address
