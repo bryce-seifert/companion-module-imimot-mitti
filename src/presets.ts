@@ -1,121 +1,98 @@
 import type {
 	CompanionPresetDefinitions,
 	CompanionPresetSection,
-	CompanionSimplePresetDefinition,
-	SomePresetActionEntry,
-	SomePresetSimpleFeedbackEntry,
+	CompanionPresetAlternatives,
 } from '@companion-module/base'
 import type { CueToggleFeedbackId, StateFlagFeedbackId } from './feedbacks.js'
 import type MittiInstance from './main.js'
 import type { ModuleSchema } from './main.js'
+import { button, type PresetAction, type PresetFeedback } from './preset-design.js'
+
 import {
 	ColorGold,
-	ColorBlack,
+	ColorSurface,
+	ColorWhite,
+	ColorRedDim,
 	ColorDisabledText,
 	ColorGreen,
 	ColorOrange,
 	ColorRed,
-	ColorWhite,
-	MittiBlue,
+	MittiCyan,
 	MittiGray,
-	pauseIcon,
-	playIcon,
 	playlistCueIDs,
-	playPauseIcon,
-	playPlaylistIcon,
-	skipBackwardIcon,
-	skipForwardIcon,
 } from './utils.js'
 
-type PresetAction = SomePresetActionEntry<ModuleSchema>
-type PresetFeedback = SomePresetSimpleFeedbackEntry<ModuleSchema>
-type Presets = Record<string, CompanionSimplePresetDefinition<ModuleSchema>>
+export { PresetTextSizes } from './preset-design.js'
 
-// Single-word transport buttons are primary; anything showing a cue name is sized to fit
-export const PresetTextSizes = {
-	primary: '18',
-	standard: '14',
-	fit: 'auto',
-} as const
-
-interface ButtonPreset {
-	name: string
-	// Title Case: what the button controls first, then what it does or the value it shows
-	lines: string[]
-	size?: keyof typeof PresetTextSizes
-	bgcolor?: number
-	icon?: string
-	down?: PresetAction[]
-	rotateLeft?: PresetAction[]
-	rotateRight?: PresetAction[]
-	feedbacks?: PresetFeedback[]
-}
-
-function button({
-	name,
-	lines,
-	size = 'standard',
-	bgcolor = ColorBlack,
-	icon,
-	down = [],
-	rotateLeft,
-	rotateRight,
-	feedbacks = [],
-}: ButtonPreset): CompanionSimplePresetDefinition<ModuleSchema> {
-	return {
-		type: 'simple',
-		name,
-		options: {},
-		style: {
-			text: lines.join('\n'),
-			size: PresetTextSizes[size],
-			color: ColorWhite,
-			bgcolor,
-			show_topbar: false,
-			...(icon && { png64: icon, pngalignment: 'center:center' }),
-		},
-		steps: [{ down, up: [], ...(rotateLeft && rotateRight && { rotate_left: rotateLeft, rotate_right: rotateRight }) }],
-		feedbacks,
-	}
-}
+type Presets = Record<string, CompanionPresetAlternatives<ModuleSchema>>
 
 interface SettingButtons {
-	ids: { toggle: string; on: string; off: string }
+	ids: { toggle?: string; on: string; off: string }
 	name: string
 	subject: string[]
-	down: { toggle: PresetAction; on: PresetAction; off: PresetAction }
+	down: { toggle?: PresetAction; on: PresetAction; off: PresetAction }
 	// Builds the feedback that is true while the setting is on, or off when inverted
-	state: ((isInverted: boolean) => PresetFeedback) | null
+	state: ((isOff: boolean) => PresetFeedback) | null
 }
+
+// The live label uses the same variable that Mitti's current-cue feedback updates.
+const CurrentCueStatusVariables = new Map<string, string>([
+	['cueAudioStatus', 'currentCueAudio'],
+	['cuePauseAtBeginningStatus', 'currentCuePauseAtBeginning'],
+	['cuePauseAtEndStatus', 'currentCuePauseAtEnd'],
+	['cueFadeInStatus', 'currentCueFadeIn'],
+	['cueFadeOutStatus', 'currentCueFadeOut'],
+	['cueLoopStatus', 'currentCueLoop'],
+	['cueTransitionStatus', 'currentCueTransition'],
+])
 
 // Toggle and On light up while the setting is on, Off while it is off
 function settingButtons({ ids, name, subject, down, state }: SettingButtons): Presets {
-	const lit = (isInverted: boolean) => (state ? [state(isInverted)] : [])
+	const lit = (isOff: boolean) => (state ? [state(isOff)] : [])
+	const statusVariable = state ? CurrentCueStatusVariables.get(state(false).feedbackId) : undefined
 	return {
-		[ids.toggle]: button({
-			name: `Toggle ${name}`,
-			lines: [...subject, 'Toggle'],
-			down: [down.toggle],
+		...(ids.toggle && down.toggle
+			? {
+					[ids.toggle]: button({
+						name: `Toggle ${name}`,
+						lines: [subject.join(' '), statusVariable ? `$(mitti:${statusVariable})` : 'Toggle'],
+						down: [down.toggle],
+						feedbacks: lit(false),
+					}),
+				}
+			: {}),
+		[ids.on]: button({
+			name: name === 'Cue Audio' ? 'Unmute Cue Audio' : `${name} On`,
+			lines: [subject.join(' '), name === 'Cue Audio' ? 'Unmute' : 'On'],
+			down: [down.on],
 			feedbacks: lit(false),
 		}),
-		[ids.on]: button({ name: `${name} On`, lines: [...subject, 'On'], down: [down.on], feedbacks: lit(false) }),
-		[ids.off]: button({ name: `${name} Off`, lines: [...subject, 'Off'], down: [down.off], feedbacks: lit(true) }),
+		[ids.off]: button({
+			name: name === 'Cue Audio' ? 'Mute Cue Audio' : `${name} Off`,
+			lines: [subject.join(' '), name === 'Cue Audio' ? 'Mute' : 'Off'],
+			down: [down.off],
+			feedbacks: lit(true),
+		}),
 	}
 }
 
-// Builders for the feedbacks that light a button while something is on; the casts only bridge the
-// generic id to the preset feedback union, whose options for these feedbacks are fixed below
+// Cyan means enabled; gray confirms an Off selection without implying the setting is enabled.
 const isOn =
 	(feedbackId: StateFlagFeedbackId) =>
-	(isInverted: boolean): PresetFeedback => ({ feedbackId, options: {}, isInverted, style: { bgcolor: MittiBlue } })
+	(isOff: boolean): PresetFeedback => ({
+		feedbackId,
+		options: isOff ? { enabled: false } : {},
+		isInverted: false,
+		style: isOff ? { bgcolor: MittiGray } : { bgcolor: ColorSurface, color: MittiCyan },
+	})
 
 const currentCueIsOn =
 	(feedbackId: CueToggleFeedbackId) =>
-	(isInverted: boolean): PresetFeedback => ({
+	(isOff: boolean): PresetFeedback => ({
 		feedbackId,
-		options: { cueID: 'current' },
-		isInverted,
-		style: { bgcolor: MittiBlue },
+		options: { cueID: 'current', ...(isOff && { enabled: false }) },
+		isInverted: false,
+		style: isOff ? { bgcolor: MittiGray } : { bgcolor: ColorSurface, color: MittiCyan },
 	})
 
 const current = { cuenumber: 'current' }
@@ -125,6 +102,26 @@ const playStateFeedbacks: PresetFeedback[] = [
 	{ feedbackId: 'playStatus', options: { playPause: 'Paused' }, style: { bgcolor: ColorGold } },
 ]
 
+const pauseResumeFeedbacks: PresetFeedback[] = [
+	{
+		feedbackId: 'playStatus',
+		options: { playPause: 'Playing' },
+		style: { bgcolor: ColorGreen, text: 'TRANSPORT\nPAUSE' },
+	},
+	{
+		feedbackId: 'playStatus',
+		options: { playPause: 'Paused' },
+		style: { bgcolor: ColorGold, text: 'TRANSPORT\nRESUME' },
+	},
+]
+
+const cueMutedFeedback: PresetFeedback = { feedbackId: 'cueAudioMuted', options: {}, style: { bgcolor: ColorOrange } }
+const selectedPlayingFeedback: PresetFeedback = {
+	feedbackId: 'selectedCuePlaying',
+	options: {},
+	style: { bgcolor: ColorGreen },
+}
+
 // A section shows its presets directly, or split into named groups
 type PresetSection = { id: string; name: string } & (
 	{ presets: Presets } | { groups: { id: string; name: string; presets: Presets }[] }
@@ -133,43 +130,51 @@ type PresetSection = { id: string; name: string } & (
 const StaticSections: PresetSection[] = [
 	{
 		id: 'playlistActions',
-		name: 'Playlist Actions',
+		name: 'Transport & Navigation',
 		groups: [
 			{
 				id: 'playlistGraphics',
 				name: 'Transport Control - Icons',
 				presets: {
 					playSelected: button({
-						name: 'Play Selected',
-						lines: [],
-						icon: playIcon,
+						name: 'Play Selected Cue',
+						lines: ['Selected Cue', 'Play'],
+						icon: 'play',
 						down: [{ actionId: 'play_select', options: { forceCut: false } }],
+						feedbacks: [selectedPlayingFeedback],
 					}),
 					playPlaylist: button({
 						name: 'Play Playlist',
-						lines: [],
-						icon: playPlaylistIcon,
+						lines: ['Playlist', 'Play'],
+						icon: 'playlist',
 						down: [{ actionId: 'play', options: {} }],
+						feedbacks: [playStateFeedbacks[0]],
 					}),
-					pause: button({ name: 'Pause', lines: [], icon: pauseIcon, down: [{ actionId: 'stop', options: {} }] }),
+					pause: button({
+						name: 'Pause',
+						lines: ['Transport', 'Pause'],
+						icon: 'pause',
+						down: [{ actionId: 'stop', options: {} }],
+						feedbacks: [playStateFeedbacks[1]],
+					}),
 					jumpPrevious: button({
-						name: 'Jump to previous',
-						lines: [],
-						icon: skipBackwardIcon,
+						name: 'Jump to Previous Cue',
+						lines: ['Jump Cue', 'Previous'],
+						icon: 'previous',
 						down: [{ actionId: 'jump_prev', options: {} }],
 					}),
 					jumpNext: button({
-						name: 'Jump to next',
-						lines: [],
-						icon: skipForwardIcon,
+						name: 'Jump to Next Cue',
+						lines: ['Jump Cue', 'Next'],
+						icon: 'next',
 						down: [{ actionId: 'jump_next', options: {} }],
 					}),
 					pauseResume: button({
 						name: 'Pause / Resume',
-						lines: [],
-						icon: playPauseIcon,
+						lines: ['Transport', 'Pause / Resume'],
+						icon: 'playPause',
 						down: [{ actionId: 'toggle_play', options: {} }],
-						feedbacks: playStateFeedbacks,
+						feedbacks: pauseResumeFeedbacks,
 					}),
 				},
 			},
@@ -178,63 +183,112 @@ const StaticSections: PresetSection[] = [
 				name: 'Transport Control - Text',
 				presets: {
 					playSelectedText: button({
-						name: 'Play Selected',
-						lines: ['Play', 'Selected'],
-						bgcolor: ColorGreen,
+						name: 'Play Selected Cue',
+						lines: ['Selected Cue', 'Play'],
 						down: [{ actionId: 'play_select', options: { forceCut: false } }],
+						feedbacks: [selectedPlayingFeedback],
 					}),
 					playPlaylistText: button({
 						name: 'Play Playlist',
-						lines: ['Play'],
+						lines: ['Playlist', 'Play'],
 						size: 'primary',
-						bgcolor: ColorGreen,
 						down: [{ actionId: 'play', options: {} }],
+						feedbacks: [playStateFeedbacks[0]],
 					}),
 					pauseText: button({
 						name: 'Pause',
-						lines: ['Pause'],
+						lines: ['Transport', 'Pause'],
 						size: 'primary',
 						down: [{ actionId: 'stop', options: {} }],
 						feedbacks: [playStateFeedbacks[1]],
 					}),
 					pauseResumeText: button({
 						name: 'Pause / Resume',
-						lines: ['Pause', 'Resume'],
+						lines: ['Transport', 'Pause / Resume'],
 						down: [{ actionId: 'toggle_play', options: {} }],
-						feedbacks: playStateFeedbacks,
+						feedbacks: pauseResumeFeedbacks,
 					}),
 					rewindText: button({
 						name: 'Rewind',
-						lines: ['Rewind'],
+						lines: ['Transport', 'Rewind'],
 						size: 'primary',
 						down: [{ actionId: 'rewind', options: {} }],
 					}),
 					panic: button({
 						name: 'Panic',
-						lines: ['Panic'],
+						lines: ['Emergency', 'Panic'],
 						size: 'primary',
 						bgcolor: ColorRed,
 						down: [{ actionId: 'panic', options: {} }],
 					}),
-					goTo30: button({ name: 'Goto 30', lines: ['Goto', '30'], down: [{ actionId: 'goto_30', options: {} }] }),
-					goTo20: button({ name: 'Goto 20', lines: ['Goto', '20'], down: [{ actionId: 'goto_20', options: {} }] }),
-					goTo10: button({ name: 'Goto 10', lines: ['Goto', '10'], down: [{ actionId: 'goto_10', options: {} }] }),
+					goTo30: button({
+						name: 'Goto 30',
+						lines: ['Goto', '30'],
+						mono: true,
+						down: [{ actionId: 'goto_30', options: {} }],
+					}),
+					goTo20: button({
+						name: 'Goto 20',
+						lines: ['Goto', '20'],
+						mono: true,
+						down: [{ actionId: 'goto_20', options: {} }],
+					}),
+					goTo10: button({
+						name: 'Goto 10',
+						lines: ['Goto', '10'],
+						mono: true,
+						down: [{ actionId: 'goto_10', options: {} }],
+					}),
 					scrubPlayheadRotary: button({
 						name: 'Scrub Playhead - Rotary Knob',
-						lines: ['Scrub', 'Rotary'],
+						lines: ['Playhead', 'Scrub'],
+						hint: 'TURN 1s / PRESS +1s',
 						down: [{ actionId: 'scrubPlayhead', options: { value: '+01:00' } }],
 						rotateLeft: [{ actionId: 'scrubPlayhead', options: { value: '-01:00' } }],
 						rotateRight: [{ actionId: 'scrubPlayhead', options: { value: '+01:00' } }],
 					}),
 					scrubPlayheadMinusOne: button({
 						name: 'Scrub -1 Second',
-						lines: ['Scrub', '-1 sec'],
+						lines: ['Scrub', '−1s'],
+						mono: true,
 						down: [{ actionId: 'scrubPlayhead', options: { value: '-01:00' } }],
 					}),
 					scrubPlayheadPlusOne: button({
 						name: 'Scrub +1 Second',
-						lines: ['Scrub', '+1 sec'],
+						lines: ['Scrub', '+1s'],
+						mono: true,
 						down: [{ actionId: 'scrubPlayhead', options: { value: '+01:00' } }],
+					}),
+				},
+			},
+			{
+				id: 'playlistTextCueNav',
+				name: 'Cue Navigation',
+				presets: {
+					jumpPreviousText: button({
+						name: 'Jump to Previous Cue',
+						lines: ['Jump', 'Previous'],
+						down: [{ actionId: 'jump_prev', options: {} }],
+					}),
+					jumpNextText: button({
+						name: 'Jump to Next Cue',
+						lines: ['Jump', 'Next'],
+						down: [{ actionId: 'jump_next', options: {} }],
+					}),
+					jumpSelected: button({
+						name: 'Jump to Selected Cue',
+						lines: ['Jump', 'Selected'],
+						down: [{ actionId: 'jump_selected', options: {} }],
+					}),
+					selectPrevious: button({
+						name: 'Select Previous Cue',
+						lines: ['Select', 'Previous'],
+						down: [{ actionId: 'select_prev', options: {} }],
+					}),
+					selectNext: button({
+						name: 'Select Next Cue',
+						lines: ['Select', 'Next'],
+						down: [{ actionId: 'select_next', options: {} }],
 					}),
 				},
 			},
@@ -257,7 +311,7 @@ const StaticSections: PresetSection[] = [
 					...settingButtons({
 						ids: { toggle: 'toggleTransitionOnPlay', on: 'transitionOnPlayOn', off: 'transitionOnPlayOff' },
 						name: 'Transition on Play',
-						subject: ['Playlist', 'Transition'],
+						subject: ['Play Transition'],
 						down: {
 							toggle: { actionId: 'plTransToggle', options: {} },
 							on: { actionId: 'plTransOn', options: {} },
@@ -268,75 +322,42 @@ const StaticSections: PresetSection[] = [
 					}),
 				},
 			},
-			{
-				id: 'playlistTextCueNav',
-				name: 'Cue Navigation',
-				presets: {
-					jumpPreviousText: button({
-						name: 'Jump to previous',
-						lines: ['Jump', 'Previous'],
-						down: [{ actionId: 'jump_prev', options: {} }],
-					}),
-					jumpNextText: button({
-						name: 'Jump to next',
-						lines: ['Jump', 'Next'],
-						down: [{ actionId: 'jump_next', options: {} }],
-					}),
-					jumpSelected: button({
-						name: 'Jump to selected',
-						lines: ['Jump', 'Selected'],
-						down: [{ actionId: 'jump_selected', options: {} }],
-					}),
-					selectPrevious: button({
-						name: 'Select previous',
-						lines: ['Select', 'Previous'],
-						down: [{ actionId: 'select_prev', options: {} }],
-					}),
-					selectNext: button({
-						name: 'Select next',
-						lines: ['Select', 'Next'],
-						down: [{ actionId: 'select_next', options: {} }],
-					}),
-				},
-			},
 		],
 	},
 	{
 		id: 'cueActions',
-		name: 'Cue Actions',
+		name: 'Cue Selection',
 		presets: {
 			playCue: button({
-				name: 'Play Cue',
-				lines: ['Play Cue', 'by ID'],
-				bgcolor: ColorGreen,
+				name: 'Play Cue by ID',
+				lines: ['Cue by ID', 'Play'],
 				down: [{ actionId: 'play_cue', options: { cuenumber: 'current', forceCut: false } }],
 			}),
 			jumpToCueWithNamePlay: button({
-				name: 'Jump to cue with (name) and Play',
-				lines: ['Play Cue', 'by Name'],
-				bgcolor: ColorGreen,
+				name: 'Play Cue by Name',
+				lines: ['Cue by Name', 'Play'],
 				down: [{ actionId: 'playCueName', options: { forceCut: false, string: '' } }],
 			}),
 			jumpToCueWithName: button({
-				name: 'Jump to cue with name',
-				lines: ['Jump Cue', 'by Name'],
+				name: 'Jump to Cue by Name',
+				lines: ['Cue by Name', 'Jump'],
 				down: [{ actionId: 'jumpCueName', options: { string: '' } }],
 			}),
 			jumpToSpecificCue: button({
-				name: 'Jump to specific cue',
-				lines: ['Jump Cue', 'by ID'],
+				name: 'Jump to Cue by ID',
+				lines: ['Cue by ID', 'Jump'],
 				down: [{ actionId: 'jump_cue', options: current }],
 			}),
 			selectCue: button({
-				name: 'Select cue',
-				lines: ['Select', 'by ID'],
+				name: 'Select Cue by ID',
+				lines: ['Cue by ID', 'Select'],
 				down: [{ actionId: 'select_cue', options: current }],
 			}),
 		},
 	},
 	{
 		id: 'currentCueActions',
-		name: 'Current Cue Actions',
+		name: 'Current Cue',
 		groups: [
 			{
 				id: 'currentPlayback',
@@ -378,7 +399,7 @@ const StaticSections: PresetSection[] = [
 					...settingButtons({
 						ids: { toggle: 'togglePauseAtBeginning', on: 'pauseAtBeginningOn', off: 'pauseAtBeginningOff' },
 						name: 'Pause at Beginning',
-						subject: ['Pause at', 'Beginning'],
+						subject: ['Pause Start'],
 						down: {
 							toggle: { actionId: 'togglePauseAtBeginning', options: current },
 							on: { actionId: 'pauseAtBeginningOn', options: current },
@@ -389,7 +410,7 @@ const StaticSections: PresetSection[] = [
 					...settingButtons({
 						ids: { toggle: 'togglePauseAtEnd', on: 'pauseAtEndOn', off: 'pauseAtEndOff' },
 						name: 'Pause at End',
-						subject: ['Pause at', 'End'],
+						subject: ['Pause End'],
 						down: {
 							toggle: { actionId: 'togglePauseAtEnd', options: current },
 							on: { actionId: 'pauseAtEndOn', options: current },
@@ -410,8 +431,8 @@ const StaticSections: PresetSection[] = [
 					}),
 					...settingButtons({
 						ids: { toggle: 'toggleVideoFX', on: 'videoFXOn', off: 'videoFXOff' },
-						name: 'VideoFx',
-						subject: ['VideoFx'],
+						name: 'Video FX',
+						subject: ['Video FX'],
 						down: {
 							toggle: { actionId: 'toggleVideoFx', options: current },
 							on: { actionId: 'videoFxOn', options: current },
@@ -428,27 +449,25 @@ const StaticSections: PresetSection[] = [
 				presets: {
 					setInFromPlayhead: button({
 						name: 'Set In From Playhead',
-						lines: ['Set In', 'Playhead'],
+						lines: ['Playhead', 'Set In'],
 						down: [{ actionId: 'setInFromPlayhead', options: {} }],
 						feedbacks: [
 							{
 								feedbackId: 'inFromPlayheadEnabled',
-								isInverted: true,
-								options: {},
-								style: { bgcolor: MittiGray, color: ColorDisabledText },
+								options: { enabled: false },
+								style: { bgcolor: ColorSurface, color: ColorDisabledText },
 							},
 						],
 					}),
 					setOutFromPlayhead: button({
 						name: 'Set Out From Playhead',
-						lines: ['Set Out', 'Playhead'],
+						lines: ['Playhead', 'Set Out'],
 						down: [{ actionId: 'setOutFromPlayhead', options: {} }],
 						feedbacks: [
 							{
 								feedbackId: 'outFromPlayheadEnabled',
-								isInverted: true,
-								options: {},
-								style: { bgcolor: MittiGray, color: ColorDisabledText },
+								options: { enabled: false },
+								style: { bgcolor: ColorSurface, color: ColorDisabledText },
 							},
 						],
 					}),
@@ -459,25 +478,36 @@ const StaticSections: PresetSection[] = [
 				name: 'Cue Playback Speed',
 				presets: {
 					currentCuePlaybackSpeedStatus: button({
-						name: 'Current Cue Playback Speed',
+						name: 'Cue Speed Status',
 						lines: ['Speed', '$(mitti:currentCuePlaybackSpeed)%'],
-					}),
-					currentCuePlaybackRotary: button({
-						name: 'Cue Playback Speed - Rotary Knob',
-						lines: ['Speed', 'Rotary'],
-						down: [{ actionId: 'playbackSpeed', options: { cuenumber: 'current', value: 100 } }],
-						rotateLeft: [{ actionId: 'adjustPlaybackSpeed', options: { value: -5 } }],
-						rotateRight: [{ actionId: 'adjustPlaybackSpeed', options: { value: 5 } }],
+						mono: true,
 					}),
 					currentCuePlaybackMinusFive: button({
-						name: 'Current Cue -5%',
+						name: 'Decrease Cue Speed by 5%',
 						lines: ['Speed', '-5%'],
+						mono: true,
 						down: [{ actionId: 'adjustPlaybackSpeed', options: { value: -5 } }],
 					}),
 					currentCuePlaybackPlusFive: button({
-						name: 'Current Cue +5%',
+						name: 'Increase Cue Speed by 5%',
 						lines: ['Speed', '+5%'],
+						mono: true,
 						down: [{ actionId: 'adjustPlaybackSpeed', options: { value: 5 } }],
+					}),
+					currentCuePlaybackReset: button({
+						name: 'Reset Cue Speed',
+						lines: ['Reset Speed', '100%'],
+						mono: true,
+						down: [{ actionId: 'playbackSpeed', options: { cuenumber: 'current', value: 100 } }],
+					}),
+					currentCuePlaybackRotary: button({
+						name: 'Cue Speed - Rotary Knob',
+						lines: ['Speed', '$(mitti:currentCuePlaybackSpeed)%'],
+						hint: 'TURN 5% / PRESS 100%',
+						mono: true,
+						down: [{ actionId: 'playbackSpeed', options: { cuenumber: 'current', value: 100 } }],
+						rotateLeft: [{ actionId: 'adjustPlaybackSpeed', options: { value: -5 } }],
+						rotateRight: [{ actionId: 'adjustPlaybackSpeed', options: { value: 5 } }],
 					}),
 				},
 			},
@@ -487,8 +517,8 @@ const StaticSections: PresetSection[] = [
 				presets: {
 					...settingButtons({
 						ids: { toggle: 'toggleAudio', on: 'audioOn', off: 'audioOff' },
-						name: 'Audio',
-						subject: ['Audio'],
+						name: 'Cue Audio',
+						subject: ['Cue Audio'],
 						down: {
 							toggle: { actionId: 'toggleAudio', options: current },
 							on: { actionId: 'audioOn', options: current },
@@ -496,22 +526,40 @@ const StaticSections: PresetSection[] = [
 						},
 						state: currentCueIsOn('cueAudioStatus'),
 					}),
-					currentCueVolumeRotary: button({
-						name: 'Cue Volume - Rotary Knob',
-						lines: ['Volume', 'Rotary'],
-						down: [{ actionId: 'volume', options: { cuenumber: 'current', value: 0 } }],
-						rotateLeft: [{ actionId: 'adjustVolume', options: { value: -1 } }],
-						rotateRight: [{ actionId: 'adjustVolume', options: { value: 1 } }],
+					currentCueVolumeStatus: button({
+						name: 'Cue Volume and Mute Status',
+						lines: ['Volume', '$(mitti:currentCueVolume) dB'],
+						hint: '$(mitti:currentCueAudio)',
+						mono: true,
+						feedbacks: [cueMutedFeedback],
 					}),
 					currentCueVolumeMinusOne: button({
-						name: 'Current Cue -1 dB',
+						name: 'Decrease Cue Volume by 1 dB',
 						lines: ['Volume', '-1 dB'],
+						mono: true,
 						down: [{ actionId: 'adjustVolume', options: { value: -1 } }],
 					}),
 					currentCueVolumePlusOne: button({
-						name: 'Current Cue +1 dB',
+						name: 'Increase Cue Volume by 1 dB',
 						lines: ['Volume', '+1 dB'],
+						mono: true,
 						down: [{ actionId: 'adjustVolume', options: { value: 1 } }],
+					}),
+					currentCueVolumeReset: button({
+						name: 'Reset Cue Volume',
+						lines: ['Reset Volume', '0 dB'],
+						mono: true,
+						down: [{ actionId: 'volume', options: { cuenumber: 'current', value: 0 } }],
+					}),
+					currentCueVolumeRotary: button({
+						name: 'Cue Volume - Rotary Knob',
+						lines: ['Volume', '$(mitti:currentCueVolume) dB'],
+						hint: 'TURN 1dB / PRESS 0dB',
+						mono: true,
+						down: [{ actionId: 'volume', options: { cuenumber: 'current', value: 0 } }],
+						rotateLeft: [{ actionId: 'adjustVolume', options: { value: -1 } }],
+						rotateRight: [{ actionId: 'adjustVolume', options: { value: 1 } }],
+						feedbacks: [cueMutedFeedback],
 					}),
 				},
 			},
@@ -519,8 +567,17 @@ const StaticSections: PresetSection[] = [
 	},
 	{
 		id: 'playlistStatus',
-		name: 'Playlist Status',
+		name: 'Live Status',
 		presets: {
+			selectedCueStatus: button({
+				name: 'Selected Cue - Play on Press',
+				lines: ['Selected', '$(mitti:selectedCueName)'],
+				hint: 'PRESS TO PLAY',
+				cue: true,
+				size: 'fit',
+				down: [{ actionId: 'play_select', options: { forceCut: false } }],
+				feedbacks: [selectedPlayingFeedback],
+			}),
 			currentCueStatus: button({
 				name: 'Current Cue',
 				lines: ['Current', '$(mitti:currentCueName)'],
@@ -538,21 +595,27 @@ const StaticSections: PresetSection[] = [
 				feedbacks: playStateFeedbacks,
 			}),
 			currentCueTRT: button({
-				name: 'Current Cue - Total Run Time',
+				name: 'Cue Total Run Time',
 				lines: ['Run Time', '$(mitti:currentCueTRT)'],
+				mono: true,
+			}),
+			currentCueTimeElapsed: button({
+				name: 'Cue Time Elapsed',
+				lines: ['Elapsed', '$(mitti:cueTimeElapsed)'],
+				mono: true,
+				progress: true,
 			}),
 			currentCueTimeRemaining: button({
-				name: 'Current Cue - Time Remaining',
+				name: 'Cue Time Remaining',
 				lines: ['Remaining', '$(mitti:cueTimeLeft)'],
-				// Warns at 10 seconds, then flashes red for the last 5
+				mono: true,
+				progress: true,
+				// Keep the value readable: amber at 10s, red at 5s, one dim pulse at 1s.
 				feedbacks: [
 					{ feedbackId: 'timeRemaining', options: { time: 10 }, style: { bgcolor: ColorOrange } },
 					{ feedbackId: 'timeRemaining', options: { time: 5 }, style: { bgcolor: ColorRed } },
-					{ feedbackId: 'timeRemaining', options: { time: 4 }, style: { bgcolor: ColorBlack } },
-					{ feedbackId: 'timeRemaining', options: { time: 3 }, style: { bgcolor: ColorRed } },
-					{ feedbackId: 'timeRemaining', options: { time: 2 }, style: { bgcolor: ColorBlack } },
-					{ feedbackId: 'timeRemaining', options: { time: 1 }, style: { bgcolor: ColorRed } },
-					{ feedbackId: 'timeRemaining', options: { time: 0 }, style: { bgcolor: ColorBlack } },
+					{ feedbackId: 'timeRemaining', options: { time: 1 }, style: { bgcolor: ColorRedDim } },
+					{ feedbackId: 'timeRemaining', options: { time: 0 }, style: { bgcolor: ColorRed } },
 				],
 			}),
 		},
@@ -566,25 +629,23 @@ const StaticSections: PresetSection[] = [
 				name: 'Video Outputs',
 				presets: {
 					videoOutputsActive: button({
-						name: 'Video Outputs Active',
+						name: 'Video Outputs - Status / Toggle',
 						lines: ['Video Out', '$(mitti:video_outputs)'],
 						down: [{ actionId: 'toggleVideoOutputs', options: {} }],
 						feedbacks: [
 							isOn('videoOutputs')(false),
-							{ feedbackId: 'videoOutputs', isInverted: true, options: {}, style: { bgcolor: ColorOrange } },
+							{ feedbackId: 'videoOutputs', options: { enabled: false }, style: { bgcolor: ColorOrange } },
 						],
 					}),
-					videoOutputsOn: button({
-						name: 'Video Outputs On',
-						lines: ['Video Out', 'On'],
-						down: [{ actionId: 'videoOutputsOn', options: {} }],
-						feedbacks: [isOn('videoOutputs')(false)],
-					}),
-					videoOutputsOff: button({
-						name: 'Video Outputs Off',
-						lines: ['Video Out', 'Off'],
-						down: [{ actionId: 'videoOutputsOff', options: {} }],
-						feedbacks: [isOn('videoOutputs')(true)],
+					...settingButtons({
+						ids: { on: 'videoOutputsOn', off: 'videoOutputsOff' },
+						name: 'Video Outputs',
+						subject: ['Video Out'],
+						down: {
+							on: { actionId: 'videoOutputsOn', options: {} },
+							off: { actionId: 'videoOutputsOff', options: {} },
+						},
+						state: isOn('videoOutputs'),
 					}),
 					...settingButtons({
 						ids: { toggle: 'toggleFullscreen', on: 'fullscreenOn', off: 'fullscreenOff' },
@@ -605,25 +666,23 @@ const StaticSections: PresetSection[] = [
 				name: 'Audio Outputs',
 				presets: {
 					audioOutputsActive: button({
-						name: 'Audio Outputs Active',
+						name: 'Audio Outputs - Status / Toggle',
 						lines: ['Audio Out', '$(mitti:audio_outputs)'],
 						down: [{ actionId: 'toggleAudioOutputs', options: {} }],
 						feedbacks: [
 							isOn('audioOutputs')(false),
-							{ feedbackId: 'audioOutputs', isInverted: true, options: {}, style: { bgcolor: ColorOrange } },
+							{ feedbackId: 'audioOutputs', options: { enabled: false }, style: { bgcolor: ColorOrange } },
 						],
 					}),
-					audioOutputsOn: button({
-						name: 'Audio Outputs On',
-						lines: ['Audio Out', 'On'],
-						down: [{ actionId: 'audioOutputsOn', options: {} }],
-						feedbacks: [isOn('audioOutputs')(false)],
-					}),
-					audioOutputsOff: button({
-						name: 'Audio Outputs Off',
-						lines: ['Audio Out', 'Off'],
-						down: [{ actionId: 'audioOutputsOff', options: {} }],
-						feedbacks: [isOn('audioOutputs')(true)],
+					...settingButtons({
+						ids: { on: 'audioOutputsOn', off: 'audioOutputsOff' },
+						name: 'Audio Outputs',
+						subject: ['Audio Out'],
+						down: {
+							on: { actionId: 'audioOutputsOn', options: {} },
+							off: { actionId: 'audioOutputsOff', options: {} },
+						},
+						state: isOn('audioOutputs'),
 					}),
 				},
 			},
@@ -636,14 +695,15 @@ function cuePresets(self: MittiInstance): Presets {
 	for (const cueID of playlistCueIDs(self.cues)) {
 		presets[`playCueID_${cueID}`] = button({
 			name: `Play Cue ${cueID}`,
-			// Upper case sets the action apart from the cue name below it
+			// The label stays fixed while the cue name shrinks within its own bounds.
 			lines: ['PLAY', `$(mitti:cue_${cueID}_cueName)`],
+			cue: true,
 			size: 'fit',
 			down: [{ actionId: 'play_cue', options: { cuenumber: cueID, forceCut: false } }],
 			feedbacks: [
-				{ feedbackId: 'selectedCueID', options: { cueID }, style: { bgcolor: MittiGray } },
-				{ feedbackId: 'activeCueID', options: { cueID }, style: { bgcolor: MittiBlue } },
-				{ feedbackId: 'playingCueID', options: { cueID }, style: { bgcolor: ColorGreen } },
+				{ feedbackId: 'selectedCueID', options: { cueID }, style: { bgcolor: ColorSurface, color: MittiCyan } },
+				{ feedbackId: 'activeCueID', options: { cueID }, style: { bgcolor: ColorSurface, color: MittiCyan } },
+				{ feedbackId: 'playingCueID', options: { cueID }, style: { bgcolor: ColorGreen, color: ColorWhite } },
 			],
 		})
 	}

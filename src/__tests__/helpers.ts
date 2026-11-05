@@ -1,4 +1,6 @@
 import { vi, type Mock } from 'vitest'
+import type { CompanionPresetDefinition, CompanionSomePresetDefinition } from '@companion-module/base'
+import type { ModuleSchema } from '../main.js'
 import { MittiApi, type CueState, type MittiState } from '../api.js'
 import { DEFAULT_FEEDBACK_PORT, type MittiConfig } from '../config.js'
 import type MittiInstance from '../main.js'
@@ -61,4 +63,12 @@ export function variablesSet(fake: FakeInstance): Record<string, unknown> {
 
 export function feedbacksChecked(fake: FakeInstance): string[] {
 	return [...new Set(fake.checkFeedbacks.mock.calls.flat() as string[])].sort()
+}
+
+// Validate every host variant, including the simple fallback.
+export function presetVariants(
+	preset: CompanionSomePresetDefinition<ModuleSchema> | undefined,
+): CompanionPresetDefinition<ModuleSchema>[] {
+	if (!preset) throw new Error('Missing preset')
+	return preset.type === 'alternatives' ? preset.variants : [preset]
 }
