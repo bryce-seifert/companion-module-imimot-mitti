@@ -2,14 +2,14 @@ import { combineRgb } from '@companion-module/base'
 import type { CueState } from './api.js'
 
 export const ColorWhite = combineRgb(255, 255, 255)
-export const ColorBlack = combineRgb(0, 0, 0)
-export const ColorRed = combineRgb(200, 0, 0)
-export const ColorGreen = combineRgb(0, 200, 0)
-export const ColorOrange = combineRgb(255, 102, 0)
-export const MittiBlue = combineRgb(73, 165, 231)
-export const MittiGray = combineRgb(77, 77, 77)
-export const ColorLime = combineRgb(0, 255, 0)
-export const ColorYellow = combineRgb(255, 255, 0)
+export const ColorBlack = combineRgb(0, 0, 0) // default background
+export const ColorGreen = combineRgb(0, 200, 0) // play, or playing
+export const ColorRed = combineRgb(200, 0, 0) // panic, or time critical
+export const ColorGold = combineRgb(250, 206, 90) // paused
+export const ColorOrange = combineRgb(248, 116, 35) // warning
+export const MittiBlue = combineRgb(73, 165, 231) // a setting or output is on, or the cue is active
+export const MittiGray = combineRgb(77, 77, 77) // selected, or unavailable
+export const ColorDisabledText = combineRgb(140, 140, 140) // text on unavailable buttons
 
 // Keys come from OSC addresses, so use a prototype-less object to keep names like `__proto__` as plain keys
 export function createRecord<T>(): Record<string, T> {

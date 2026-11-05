@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'vitest'
 import { getActions } from '../actions.js'
 import { getFeedbacks } from '../feedbacks.js'
-import { getPresets } from '../presets.js'
+import { getPresets, PresetTextSizes } from '../presets.js'
+import { ColorWhite } from '../utils.js'
 import { getCueVariableValues, getVariables } from '../variables.js'
 import { asInstance, createApi, createFakeInstance } from './helpers.js'
 
@@ -43,6 +44,36 @@ describe('presets', () => {
 				expect(feedbacks, preset.name).toHaveProperty([feedback.feedbackId])
 			}
 		}
+	})
+
+	test('every preset follows the shared text style', () => {
+		const sizes: unknown[] = Object.values(PresetTextSizes)
+		for (const preset of Object.values(presets)) {
+			if (preset?.type !== 'simple') throw new Error('Only simple presets are expected')
+			const { text, size, color } = preset.style
+
+			expect(sizes, preset.name).toContain(size)
+			expect(color, preset.name).toBe(ColorWhite)
+			expect(text.split('\n').length, preset.name).toBeLessThanOrEqual(3)
+			expect(text, preset.name).not.toContain('\\n')
+		}
+	})
+
+	test('on, off and toggle presets light up for the matching state', () => {
+		const feedbackOf = (id: string) => {
+			const preset = presets[id]
+			if (preset?.type !== 'simple') throw new Error(`No simple preset ${id}`)
+			return preset.feedbacks.map(({ feedbackId, options, isInverted }) => ({ feedbackId, options, isInverted }))
+		}
+
+		expect(feedbackOf('loopOn')).toEqual([
+			{ feedbackId: 'cueLoopStatus', options: { cueID: 'current' }, isInverted: false },
+		])
+		expect(feedbackOf('loopOff')).toEqual([
+			{ feedbackId: 'cueLoopStatus', options: { cueID: 'current' }, isInverted: true },
+		])
+		expect(feedbackOf('videoOutputsOn')).toEqual([{ feedbackId: 'videoOutputs', options: {}, isInverted: false }])
+		expect(feedbackOf('fullscreenOn')).toEqual([])
 	})
 
 	test('Play Cue by ID only lists playlist cues', () => {

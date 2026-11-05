@@ -56,6 +56,8 @@ const CueToggleFeedbacks = {
 	},
 } as const satisfies Record<string, FeedbackText & { field: string }>
 
+export type CueToggleFeedbackId = keyof typeof CueToggleFeedbacks
+
 // The feedback to recheck when a cue's toggle field changes, eg `toggleLoop` -> `cueLoopStatus`
 export const CueToggleFeedbackIds = new Map<string, keyof typeof CueToggleFeedbacks>(
 	Object.entries(CueToggleFeedbacks).map(([id, { field }]) => [field, id as keyof typeof CueToggleFeedbacks]),
@@ -84,6 +86,8 @@ const StateFlagFeedbacks = {
 		state: 'outFromPlayheadEnabled',
 	},
 } as const satisfies Record<string, FeedbackText & { state: keyof MittiState }>
+
+export type StateFlagFeedbackId = keyof typeof StateFlagFeedbacks
 
 type CueNameFeedbackId = 'playingCueName' | 'activeCueName' | 'selectedCueName'
 

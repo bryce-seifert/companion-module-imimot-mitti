@@ -560,6 +560,10 @@ export class MittiApi {
 			}
 
 			this.setVariables({ [variableId]: variableValue })
+			const feedbackId = CueToggleFeedbackIds.get(param)
+			if (feedbackId) {
+				this.checkFeedbacks(feedbackId)
+			}
 		} else if (cue === 'previous' || cue === 'next') {
 			this.self.cues[cue] ??= createRecord()
 			this.self.cues[cue][param] = value

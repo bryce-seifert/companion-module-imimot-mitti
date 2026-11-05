@@ -110,6 +110,14 @@ describe('current cue messages', () => {
 		})
 	})
 
+	test('toggles recheck the feedbacks that presets point at the current cue', async () => {
+		receive(api, '/mitti/current/toggleLoop', 1)
+		await flush()
+
+		expect(fake.cues.current).toEqual({ toggleLoop: 1 })
+		expect(feedbacksChecked(fake)).toEqual(['cueLoopStatus'])
+	})
+
 	test('volume is rounded and remembered for the adjust volume action', async () => {
 		receive(api, '/mitti/current/volumeAsDecibels', -3.6811299324035645)
 		await flush()

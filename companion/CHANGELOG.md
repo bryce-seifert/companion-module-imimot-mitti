@@ -11,14 +11,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Requires Companion v5.0.0 or newer, or Buttons v1.8.0 or newer
 - Any action or feedback field can now be driven by an expression
 - Presets are now organized into sections and groups
+- Presets restyled with consistent labels, text sizes and colors. On / Off / Toggle presets now light up to show the current state.
 - Config: Feedback Port is now a number field. Existing values are converted automatically.
 - Action: Play cue at index now uses a number field for the cue index. Existing values, including variables, are converted automatically.
 - Variable: `currentCueAudio` now reports "Muted" / "Unmuted" instead of "Off" / "On"
-- Module rewritten in TypeScript
 - Variable and feedback updates from Mitti are now batched, and unchanged values are no longer resent
+- Module rewritten in TypeScript
 
 ### Fixed
 
+- Presets: Register feedback definitions before presets to avoid unknown feedback warnings on startup
 - Config: Changing the IP address to an invalid value now disconnects, instead of continuing to use the previous address
 - Feedback messages with unexpected cue names can no longer corrupt module state
 - Feedback: Time Remaining on Playing Cue was incorrect for cues longer than one hour

@@ -46,9 +46,9 @@ export default class MittiInstance extends InstanceBase<ModuleSchema> {
 		this.config = config
 		this.api.host = getMittiHost(config)
 
-		this.initPresets()
 		this.initVariables()
 		this.initFeedbacks()
+		this.initPresets()
 
 		const configError = !this.api.host
 			? 'Unable to determine IP Address'
